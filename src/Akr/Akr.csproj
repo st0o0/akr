@@ -24,10 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Akr.Core\Akr.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <InternalsVisibleTo Include="Akr.Tests" />
     <InternalsVisibleTo Include="Akr.Architecture.Tests" />
   </ItemGroup>
 

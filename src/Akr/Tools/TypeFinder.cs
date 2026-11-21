@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Akr.Core.Tools;
+namespace Akr.Tools;
 
 public static partial class TypeFinder
 {

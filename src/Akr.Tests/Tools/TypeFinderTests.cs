@@ -1,4 +1,4 @@
-using Akr.Core.Tools;
+using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 

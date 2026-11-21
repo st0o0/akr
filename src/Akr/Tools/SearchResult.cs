@@ -1,4 +1,4 @@
-namespace Akr.Core.Tools;
+namespace Akr.Tools;
 
 public sealed record SearchResult(
     string File,

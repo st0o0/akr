@@ -1,4 +1,4 @@
-using Akr.Core.Registry;
+using Akr.Registry;
 
 namespace Akr.Tests.Registry;
 

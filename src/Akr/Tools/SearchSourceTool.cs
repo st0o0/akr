@@ -1,7 +1,5 @@
 using System.ComponentModel;
 using System.Text;
-using Akr.Core;
-using Akr.Core.Tools;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,19 +9,16 @@ public sealed class SearchSourceTool
 {
     [McpServerTool(Name = "search_source"), Description("Search across cached Akka.NET source code using regex patterns.")]
     public static async Task<string> SearchAsync(
-        ISourceProvider sourceProvider,
+        GitHubClient github,
         [Description("Regex pattern to search for")] string query,
         [Description("File glob pattern (default: *.cs)")] string? filePattern = null,
         [Description("Maximum results to return (default: 20)")] int? maxResults = null,
-        [Description("Version override for source fetching")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        await sourceProvider.EnsureAllConfiguredAsync(cancellationToken);
-
-        var roots = await sourceProvider.GetAllCachedSourceRootsAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
         if (roots.Count == 0)
         {
-            return "No Akka.NET source cached. Configure AKKA_VERSIONS environment variable.";
+            return "No Akka.NET source available.";
         }
 
         var results = SourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);

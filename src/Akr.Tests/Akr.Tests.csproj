@@ -13,8 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Akr.Core\Akr.Core.csproj" />
-    <ProjectReference Include="..\Akr.Tests.Shared\Akr.Tests.Shared.csproj" />
+    <ProjectReference Include="..\Akr\Akr.csproj" />
   </ItemGroup>
 
   <ItemGroup>

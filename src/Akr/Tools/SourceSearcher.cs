@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Akr.Core.Tools;
+namespace Akr.Tools;
 
 public static class SourceSearcher
 {

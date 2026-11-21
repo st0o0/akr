@@ -1,22 +1,14 @@
-using Akr.Core;
-using Akr.Core.Caching;
-using Akr.Core.Configuration;
-using Akr.Core.Fetching;
-using Akr.Core.Tools;
-using Microsoft.Extensions.Logging.Abstractions;
-using NSubstitute;
+using Akr.Tools;
 
 namespace Akr.Tests.Integration;
 
 public sealed class SmokeTests : IDisposable
 {
-    private readonly string _cacheRoot;
     private readonly string _sourceRoot;
 
     public SmokeTests()
     {
-        _cacheRoot = Path.Combine(Path.GetTempPath(), $"akr-smoke-{Guid.NewGuid()}");
-        _sourceRoot = Path.Combine(_cacheRoot, "akka.net", "1.5.30");
+        _sourceRoot = Path.Combine(Path.GetTempPath(), $"akr-smoke-{Guid.NewGuid()}");
         Directory.CreateDirectory(_sourceRoot);
 
         WriteSource("src/core/Akka/Actor/ActorBase.cs", """
@@ -150,26 +142,6 @@ public sealed class SmokeTests : IDisposable
         Assert.Contains("GetTimeSpan", results[0].Source);
     }
 
-    [Fact]
-    public async Task Source_provider_orchestrates_full_flow()
-    {
-        var versionConfig = Substitute.For<IVersionConfig>();
-        versionConfig.GetVersion("Akka").Returns("1.5.30");
-        versionConfig.GetAll().Returns(new Dictionary<string, string> { ["Akka"] = "1.5.30" });
-
-        var cache = new FileSystemSourceCache(_cacheRoot);
-        var fetcher = Substitute.For<ISourceFetcher>();
-
-        var provider = new SourceProvider(versionConfig, cache, fetcher, NullLogger<SourceProvider>.Instance);
-
-        var root = await provider.GetSourceRootAsync("Akka", cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.NotNull(root);
-        Assert.True(Directory.Exists(root));
-        await fetcher.DidNotReceiveWithAnyArgs()
-            .FetchAsync(default!, default!, default!, TestContext.Current.CancellationToken);
-    }
-
     private void WriteSource(string relativePath, string content)
     {
         var fullPath = Path.Combine(_sourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -177,5 +149,5 @@ public sealed class SmokeTests : IDisposable
         File.WriteAllText(fullPath, content);
     }
 
-    public void Dispose() => Directory.Delete(_cacheRoot, recursive: true);
+    public void Dispose() => Directory.Delete(_sourceRoot, recursive: true);
 }

@@ -1,7 +1,5 @@
 <Solution>
-  <Project Path="Akr.Architecture.Tests/Akr.Architecture.Tests.csproj" />
-  <Project Path="Akr.Core/Akr.Core.csproj" />
-  <Project Path="Akr.Tests.Shared/Akr.Tests.Shared.csproj" />
-  <Project Path="Akr.Tests/Akr.Tests.csproj" />
   <Project Path="Akr/Akr.csproj" />
+  <Project Path="Akr.Tests/Akr.Tests.csproj" />
+  <Project Path="Akr.Architecture.Tests/Akr.Architecture.Tests.csproj" />
 </Solution>

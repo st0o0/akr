@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Akr\Akr.csproj" />
-    <ProjectReference Include="..\Akr.Core\Akr.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

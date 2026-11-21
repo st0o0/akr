@@ -1,7 +1,5 @@
 using System.ComponentModel;
 using System.Text;
-using Akr.Core;
-using Akr.Core.Tools;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,18 +9,15 @@ public sealed class LookupTypeTool
 {
     [McpServerTool(Name = "lookup_type"), Description("Find a C# type by name across cached Akka.NET source code and return its source.")]
     public static async Task<string> LookupAsync(
-        ISourceProvider sourceProvider,
+        GitHubClient github,
         [Description("Type name to look up (e.g. ActorBase, IActorRef, Props)")] string type,
         [Description("Return full file source instead of summary (default: false)")] bool? fullSource = null,
-        [Description("Version override for source fetching")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        await sourceProvider.EnsureAllConfiguredAsync(cancellationToken);
-
-        var roots = await sourceProvider.GetAllCachedSourceRootsAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
         if (roots.Count == 0)
         {
-            return "No Akka.NET source cached. Configure AKKA_VERSIONS environment variable.";
+            return "No Akka.NET source available.";
         }
 
         var results = TypeFinder.FindType(roots, type, fullSource ?? false);

@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 
-namespace Akr.Core.Registry;
+namespace Akr.Registry;
 
 public static class RepoRegistry
 {
