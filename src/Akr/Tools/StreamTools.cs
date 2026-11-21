@@ -1,12 +1,69 @@
+using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
 
 public sealed record StageInfo(string Name, string Category);
 
-public static class StageFinder
+[McpServerToolType]
+public sealed class StreamTools
 {
+    [McpServerTool(Name = "search_source"), Description("Search across cached Akka.NET source code using regex patterns.")]
+    public static async Task<string> SearchAsync(
+        GitHubClient github,
+        [Description("Regex pattern to search for")] string query,
+        [Description("File glob pattern (default: *.cs)")] string? filePattern = null,
+        [Description("Maximum results to return (default: 20)")] int? maxResults = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        if (roots.Count == 0)
+        {
+            return "No Akka.NET source available.";
+        }
+
+        var results = SourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);
+        if (results.Count == 0)
+        {
+            return $"No matches found for pattern: {query}";
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Found {results.Count} match(es):");
+        sb.AppendLine();
+
+        foreach (var result in results)
+        {
+            sb.AppendLine($"--- {result.File}:{result.LineNumber} ---");
+            foreach (var line in result.ContextBefore)
+            {
+                sb.AppendLine($"  {line}");
+            }
+
+            sb.AppendLine($"> {result.MatchingLine}");
+            foreach (var line in result.ContextAfter)
+            {
+                sb.AppendLine($"  {line}");
+            }
+
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    [McpServerTool(Name = "stream_stages"), Description("Catalog built-in Akka.Streams stages with shape classification.")]
+    public static async Task<string> ListStagesAsync(
+        GitHubClient github,
+        [Description("Optional keyword to filter stages (e.g. fan, merge, broadcast)")] string? filter = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        return Format(FindStages(roots, filter), filter);
+    }
+
     public static readonly IReadOnlyList<string> Categories = ["Source", "Flow", "Sink", "Fan-In", "Fan-Out", "Custom"];
 
     private static readonly Regex _classPattern = new(

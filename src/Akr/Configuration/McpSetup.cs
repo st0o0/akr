@@ -17,11 +17,8 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services
             .AddMcpServer()
             .WithStdioServerTransport()
-            .WithTools<SearchSourceTool>()
-            .WithTools<LookupTypeTool>()
-            .WithTools<TypeMembersTool>()
-            .WithTools<HostingExtensionsTool>()
-            .WithTools<ConfigReferenceTool>()
-            .WithTools<StreamStagesTool>();
+            .WithTools<TypeTools>()
+            .WithTools<HostingTools>()
+            .WithTools<StreamTools>();
     }
 }

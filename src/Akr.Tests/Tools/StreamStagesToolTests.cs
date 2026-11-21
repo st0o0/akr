@@ -46,7 +46,7 @@ public sealed class StreamStagesToolTests : IDisposable
             """);
     }
 
-    private IReadOnlyList<StageInfo> Find(string? filter = null) => StageFinder.FindStages([_testRoot], filter);
+    private IReadOnlyList<StageInfo> Find(string? filter = null) => StreamTools.FindStages([_testRoot], filter);
 
     [Fact]
     public void GraphStage_with_FlowShape_is_Flow()
@@ -106,11 +106,11 @@ public sealed class StreamStagesToolTests : IDisposable
     [Fact]
     public void Format_groups_by_category()
     {
-        var output = StageFinder.Format(Find("Tick"), "Tick");
+        var output = StreamTools.Format(Find("Tick"), "Tick");
 
         Assert.Contains("Source:", output);
         Assert.Contains("  Tick<T>", output);
-        Assert.Contains("matching filter: X", StageFinder.Format([], "X"));
+        Assert.Contains("matching filter: X", StreamTools.Format([], "X"));
     }
 
     private void WriteFile(string relativePath, string content)

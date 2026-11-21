@@ -100,12 +100,9 @@ public sealed class McpServerTests : IAsyncDisposable
             .WithStreamServerTransport(
                 _clientToServer.Reader.AsStream(),
                 _serverToClient.Writer.AsStream())
-            .WithTools<SearchSourceTool>()
-            .WithTools<LookupTypeTool>()
-            .WithTools<TypeMembersTool>()
-            .WithTools<HostingExtensionsTool>()
-            .WithTools<ConfigReferenceTool>()
-            .WithTools<StreamStagesTool>();
+            .WithTools<TypeTools>()
+            .WithTools<HostingTools>()
+            .WithTools<StreamTools>();
 
         _serviceProvider = services.BuildServiceProvider(validateScopes: true);
         var server = _serviceProvider.GetRequiredService<McpServer>();

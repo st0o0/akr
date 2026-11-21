@@ -43,7 +43,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Finds_all_reference_conf_files()
     {
-        var output = ConfigReferenceTool.Find([_testRoot], null);
+        var output = HostingTools.FindConfig([_testRoot], null);
 
         Assert.Contains("--- src/core/Akka/reference.conf ---", output);
         Assert.Contains("--- src/core/Akka.Persistence/reference.conf ---", output);
@@ -53,7 +53,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Path_filter_extracts_matching_block_only()
     {
-        var output = ConfigReferenceTool.Find([_testRoot], "akka.persistence");
+        var output = HostingTools.FindConfig([_testRoot], "akka.persistence");
 
         Assert.Contains("--- src/core/Akka.Persistence/reference.conf ---", output);
         Assert.DoesNotContain("src/core/Akka/reference.conf", output);
@@ -65,7 +65,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Nested_blocks_are_fully_extracted()
     {
-        var output = ConfigReferenceTool.Find([_testRoot], "akka.persistence");
+        var output = HostingTools.FindConfig([_testRoot], "akka.persistence");
 
         Assert.Contains("journal {", output);
         Assert.Contains("snapshot-store {", output);
@@ -76,7 +76,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     public void Extractor_returns_exact_block()
     {
         var lines = File.ReadAllLines(Path.Combine(_testRoot, "src/core/Akka/reference.conf"));
-        var block = HoconBlockExtractor.Extract(lines, "akka.actor.default-dispatcher");
+        var block = HostingTools.ExtractHoconBlock(lines, "akka.actor.default-dispatcher");
 
         Assert.NotNull(block);
         Assert.StartsWith("        default-dispatcher {", block);
@@ -88,7 +88,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Extractor_handles_dotted_key_on_one_line()
     {
-        var block = HoconBlockExtractor.Extract(["akka.remote {", "  port = 1", "}", "x = 2"], "akka.remote");
+        var block = HostingTools.ExtractHoconBlock(["akka.remote {", "  port = 1", "}", "x = 2"], "akka.remote");
 
         Assert.Equal("akka.remote {\n  port = 1\n}", block);
     }
@@ -96,7 +96,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void No_match_returns_message()
     {
-        Assert.Equal("No config found for path: akka.nothing", ConfigReferenceTool.Find([_testRoot], "akka.nothing"));
+        Assert.Equal("No config found for path: akka.nothing", HostingTools.FindConfig([_testRoot], "akka.nothing"));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
         var empty = Path.Combine(_testRoot, "empty");
         Directory.CreateDirectory(empty);
 
-        Assert.Equal("No reference.conf files found.", ConfigReferenceTool.Find([empty], null));
+        Assert.Equal("No reference.conf files found.", HostingTools.FindConfig([empty], null));
     }
 
     private void WriteFile(string relativePath, string content)

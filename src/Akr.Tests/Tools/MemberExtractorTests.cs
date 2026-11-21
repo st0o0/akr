@@ -32,7 +32,7 @@ public sealed class MemberExtractorTests
     [Fact]
     public void Extract_ClassWithPropertiesMethodsConstructors()
     {
-        var members = MemberExtractor.Extract(ClassSource, "Props");
+        var members = TypeTools.Extract(ClassSource, "Props");
 
         Assert.Contains(new MemberInfo("Property", "Type Type { get; }"), members);
         Assert.Contains(new MemberInfo("Property", "int Count { get; set; }"), members);
@@ -54,7 +54,7 @@ public sealed class MemberExtractorTests
             }
             """;
 
-        var members = MemberExtractor.Extract(source, "IActorRef");
+        var members = TypeTools.Extract(source, "IActorRef");
 
         Assert.Contains(new MemberInfo("Property", "ActorPath Path { get; }"), members);
         Assert.Contains(new MemberInfo("Method", "void Tell(object message, IActorRef sender)"), members);
@@ -72,7 +72,7 @@ public sealed class MemberExtractorTests
             }
             """;
 
-        var members = MemberExtractor.Extract(source, "Watcher");
+        var members = TypeTools.Extract(source, "Watcher");
 
         Assert.Contains(new MemberInfo("Event", "event EventHandler Changed"), members);
         Assert.Contains(new MemberInfo("Event", "protected event Action<string> Notified"), members);
@@ -89,7 +89,7 @@ public sealed class MemberExtractorTests
             }
             """;
 
-        var members = MemberExtractor.Extract(source, "Sample");
+        var members = TypeTools.Extract(source, "Sample");
 
         Assert.Contains(new MemberInfo("Property", "int Value { get; }"), members);
         Assert.Contains(new MemberInfo("Method", "string Describe(int x)"), members);
@@ -116,7 +116,7 @@ public sealed class MemberExtractorTests
             }
             """;
 
-        var members = MemberExtractor.Extract(source, "Sample");
+        var members = TypeTools.Extract(source, "Sample");
 
         Assert.Contains(new MemberInfo("Method", "void Configure(string name, int count)"), members);
         Assert.Contains(new MemberInfo("Property", "int Number { get; set; }"), members);
@@ -125,7 +125,7 @@ public sealed class MemberExtractorTests
     [Fact]
     public void Format_GroupsMembersByKind()
     {
-        var text = MemberExtractor.Format(MemberExtractor.Extract(ClassSource, "Props"));
+        var text = TypeTools.Format(TypeTools.Extract(ClassSource, "Props"));
 
         Assert.StartsWith("Properties:", text, StringComparison.Ordinal);
         Assert.Contains("Methods:", text, StringComparison.Ordinal);
@@ -136,7 +136,7 @@ public sealed class MemberExtractorTests
     [Fact]
     public void FormatHeader_IncludesBaseTypes()
     {
-        Assert.Equal("Props : ISurrogated", MemberExtractor.FormatHeader("public sealed class Props : ISurrogated", "Props"));
-        Assert.Equal("Props", MemberExtractor.FormatHeader("public sealed class Props", "Props"));
+        Assert.Equal("Props : ISurrogated", TypeTools.FormatHeader("public sealed class Props : ISurrogated", "Props"));
+        Assert.Equal("Props", TypeTools.FormatHeader("public sealed class Props", "Props"));
     }
 }

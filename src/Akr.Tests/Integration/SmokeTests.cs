@@ -105,7 +105,7 @@ public sealed class SmokeTests : IDisposable
     [Fact]
     public void Lookup_type_finds_ActorBase()
     {
-        var results = TypeFinder.FindType([_sourceRoot], "ActorBase");
+        var results = TypeTools.FindType([_sourceRoot], "ActorBase");
 
         Assert.Single(results);
         Assert.Equal("Akka.Actor", results[0].Namespace);
@@ -115,7 +115,7 @@ public sealed class SmokeTests : IDisposable
     [Fact]
     public void Lookup_type_finds_interface()
     {
-        var results = TypeFinder.FindType([_sourceRoot], "IActorRef");
+        var results = TypeTools.FindType([_sourceRoot], "IActorRef");
 
         Assert.Single(results);
         Assert.Contains("interface IActorRef", results[0].Declaration);
@@ -124,7 +124,7 @@ public sealed class SmokeTests : IDisposable
     [Fact]
     public void Lookup_type_full_source_returns_complete_file()
     {
-        var results = TypeFinder.FindType([_sourceRoot], "Props", fullSource: true);
+        var results = TypeTools.FindType([_sourceRoot], "Props", fullSource: true);
 
         Assert.Single(results);
         Assert.Contains("Create<TActor>", results[0].Source);
@@ -135,7 +135,7 @@ public sealed class SmokeTests : IDisposable
     [Fact]
     public void Lookup_type_summary_includes_member_signatures()
     {
-        var results = TypeFinder.FindType([_sourceRoot], "Config");
+        var results = TypeTools.FindType([_sourceRoot], "Config");
 
         Assert.Single(results);
         Assert.Contains("GetString", results[0].Source);
