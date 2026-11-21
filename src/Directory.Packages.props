@@ -5,7 +5,8 @@
   </PropertyGroup>
   <ItemGroup Label="MCP">
     <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0" />
-<PackageVersion Include="ModelContextProtocol" Version="2.1.0" />
+    <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
     <PackageVersion Include="Terp" Version="0.2.1" />
   </ItemGroup>
   <ItemGroup Label="Hosting">
@@ -14,7 +15,7 @@
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
-<PackageVersion Include="Verify.DiffPlex" Version="3.3.1" />
+    <PackageVersion Include="Verify.DiffPlex" Version="3.3.1" />
     <PackageVersion Include="Verify.XunitV3" Version="32.0.1" />
     <PackageVersion Include="xunit.v3.mtp-v2" Version="4.0.2" />
   </ItemGroup>

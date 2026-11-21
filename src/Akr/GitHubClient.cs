@@ -9,7 +9,7 @@ namespace Akr;
 
 public sealed class GitHubClient(HttpClient httpClient, ILogger<GitHubClient> logger)
 {
-    private static readonly string _cacheRoot = Path.Combine(
+    internal static string CacheRoot { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".akr", "sources");
 
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
@@ -18,7 +18,7 @@ public sealed class GitHubClient(HttpClient httpClient, ILogger<GitHubClient> lo
     {
         var version = await ResolveLatestAsync(repo, cancellationToken);
         var repoName = repo.Contains('/') ? repo[(repo.IndexOf('/') + 1)..] : repo;
-        var targetPath = Path.Combine(_cacheRoot, repoName, version);
+        var targetPath = Path.Combine(CacheRoot, repoName, version);
 
         if (Directory.Exists(targetPath))
         {
