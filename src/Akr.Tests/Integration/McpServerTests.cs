@@ -104,7 +104,11 @@ public sealed class McpServerTests : IAsyncDisposable
                 _serverToClient.Writer.AsStream())
             .WithTools<TypeTools>()
             .WithTools<HostingTools>()
-            .WithTools<StreamTools>();
+            .WithTools<StreamTools>()
+            .WithTools<DeepIntelligenceTools>()
+            .WithTools<StreamPersistenceTools>()
+            .WithTools<ConfigMigrationTools>()
+            .WithTools<EcosystemTools>();
 
         _serviceProvider = services.BuildServiceProvider(validateScopes: true);
         var server = _serviceProvider.GetRequiredService<McpServer>();
@@ -152,6 +156,15 @@ public sealed class McpServerTests : IAsyncDisposable
         Assert.Contains("hosting_extensions", names);
         Assert.Contains("config_reference", names);
         Assert.Contains("stream_stages", names);
+        Assert.Contains("type_hierarchy", names);
+        Assert.Contains("find_implementations", names);
+        Assert.Contains("find_messages", names);
+        Assert.Contains("virtual_methods", names);
+        Assert.Contains("journal_plugins", names);
+        Assert.Contains("config_tree", names);
+        Assert.Contains("cluster_events", names);
+        Assert.Contains("dependency_graph", names);
+        Assert.True(names.Count >= 33, $"Expected at least 33 tools, got {names.Count}");
     }
 
     [Fact]

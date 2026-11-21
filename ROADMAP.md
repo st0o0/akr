@@ -1,66 +1,65 @@
-# akka-mcp — Roadmap
+# akr — Roadmap
 
-## Phase 0: Infrastructure (foundation)
+## Phase 0: Infrastructure (done)
 
-- [ ] Project version detection — scan `Directory.Packages.props` and `.csproj` for `Akka.*` packages
-- [ ] GitHub source fetcher — clone/fetch tagged version from akkadotnet repos
-- [ ] Version fallback — use `dev`/`main` branch when no matching tag exists, latest release when no project version found
-- [ ] Local cache — `~/.akka-mcp/sources/{repo}/{version}/` with cache invalidation
-- [ ] Multi-repo registry — map NuGet package names to GitHub repos and source paths
-- [ ] Roslyn workspace — load cached source into a Roslyn `AdhocWorkspace` for semantic analysis
+- [x] GitHub source fetcher — download tagged archives from akkadotnet repos
+- [x] Local cache — `~/.akr/sources/{repo}/{version}/` with atomic extraction
+- [x] Multi-repo registry — 24 packages across 5 repos
+- [x] Latest-by-default — no config needed, resolves latest on first use
 
-## Phase 1: Core Tools (biggest token savings)
+## Phase 1: Core Tools (done)
 
-- [ ] `type_members` — signatures only, no bodies (highest token savings per call)
-- [ ] `hosting_extensions` — all `With*`/`AddAkka` extension methods with parameters
-- [ ] `config_reference` — Hosting-first, HOCON fallback with defaults
-- [ ] `stream_stages` — built-in stage catalog with signatures and shape info
-- [ ] `search_source` — freetext/regex across all cached Akka source
-- [ ] `lookup_type` — full source with inheritance chain
+- [x] `search_source` — regex search across all cached Akka source
+- [x] `lookup_type` — find type, return source
+- [x] `type_members` — compact member signatures without bodies
+- [x] `hosting_extensions` — `With*`/`Add*` extension methods from Akka.Hosting
+- [x] `config_reference` — HOCON defaults from `reference.conf`
+- [x] `stream_stages` — built-in stage catalog with shape classification
 
-## Phase 2: Deep Intelligence
+## Phase 2: Deep Intelligence (done)
 
-- [ ] `type_hierarchy` — full inheritance trees
-- [ ] `find_implementations` — all implementations of an interface
-- [ ] `find_messages` — message types handled by an actor
-- [ ] `message_protocol` — request/response pairs and events
-- [ ] `virtual_methods` — overridable methods with lifecycle ordering
-- [ ] `supervision_defaults` — default strategies per actor type
+- [x] `type_hierarchy` — full inheritance trees
+- [x] `find_implementations` — all implementations of an interface
+- [x] `find_messages` — message types handled by an actor
+- [x] `message_protocol` — request/response pairs and events
+- [x] `virtual_methods` — overridable methods with lifecycle ordering
+- [x] `supervision_defaults` — default strategies per actor type
 
-## Phase 3: Streams & Persistence
+## Phase 3: Streams & Persistence (done)
 
-- [ ] `stage_detail` — full source of a specific stream stage
-- [ ] `graph_dsl_operators` — GraphDSL operators with shapes
-- [ ] `stream_attributes` — configurable attributes with defaults
-- [ ] `journal_plugins` — journal plugin catalog with config
-- [ ] `snapshot_plugins` — snapshot store catalog with config
-- [ ] `persistence_query` — ReadJournal implementations
-- [ ] `event_adapter_chain` — adapter configuration
+- [x] `stage_detail` — full source of a specific stream stage
+- [x] `graph_dsl_operators` — GraphDSL operators with shapes
+- [x] `stream_attributes` — configurable attributes with defaults
+- [x] `journal_plugins` — journal plugin catalog with config
+- [x] `snapshot_plugins` — snapshot store catalog with config
+- [x] `persistence_query` — ReadJournal implementations
+- [x] `event_adapter_chain` — adapter configuration
 
-## Phase 4: Config & Migration
+## Phase 4: Config & Migration (done)
 
-- [ ] `config_tree` — hierarchical config with Hosting/HOCON layers
-- [ ] `hosting_to_hocon` — bidirectional mapping for migration
-- [ ] `hosting_startup_order` — registration ordering constraints
-- [ ] `config_diff` — config changes between versions
-- [ ] `changelog` — breaking changes between versions
+- [x] `config_tree` — hierarchical config with Hosting/HOCON layers
+- [x] `hosting_to_hocon` — bidirectional mapping for migration
+- [x] `hosting_startup_order` — registration ordering constraints
+- [x] `config_diff` — config key listing (version comparison planned)
+- [x] `changelog` — changelog/release notes search
 
-## Phase 5: Ecosystem
+## Phase 5: Ecosystem (done)
 
-- [ ] `serializer_bindings` — serializer-to-type mapping
-- [ ] `serializer_detail` — serializer source and config
-- [ ] `serialization_manifest` — persistence event manifests
-- [ ] `hosting_di_patterns` — DI integration patterns
-- [ ] `hosting_testkit` — TestKit comparison and setup
-- [ ] `testkit_helpers` — TestKit utilities per feature
-- [ ] `cluster_events` — cluster event lifecycle
-- [ ] `extension_points` — provider/plugin interfaces
-- [ ] `dependency_graph` — package dependency map
+- [x] `serializer_bindings` — serializer-to-type mapping
+- [x] `serializer_detail` — serializer source and config
+- [x] `serialization_manifest` — persistence event manifests
+- [x] `hosting_di_patterns` — DI integration patterns
+- [x] `hosting_testkit` — TestKit comparison and setup
+- [x] `testkit_helpers` — TestKit utilities per feature
+- [x] `cluster_events` — cluster event lifecycle
+- [x] `extension_points` — provider/plugin interfaces
+- [x] `dependency_graph` — package dependency map
 
 ## Future Ideas
 
-- [ ] Incremental source updates (git pull instead of full clone)
 - [ ] Roslyn-powered semantic search (find usages, call graphs)
+- [ ] Real `config_diff` between two versions
 - [ ] HOCON schema validation tool
 - [ ] Actor hierarchy visualization (Mermaid output)
 - [ ] Integration with akka-skills for combined intelligence
+- [ ] NuGet package publishing

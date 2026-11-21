@@ -16,7 +16,16 @@ jobs:
       contents: write
       pull-requests: write
 
-  build:
+  nuget:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: st0o0/github-workflows/.github/workflows/dotnet-build-nuget.yml@main
+    with:
+      solution-file: akr.slnx
+      version: ${{ needs.release-please.outputs.version }}
+      locked-mode: false
+
+  native:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     strategy:
@@ -65,15 +74,27 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
 
-  publish-release:
-    needs: [release-please, build]
+  publish:
+    needs: [release-please, nuget, native]
     runs-on: ubuntu-latest
+    environment: nuget
     permissions:
       contents: write
+      id-token: write
     steps:
+      - uses: actions/setup-dotnet@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Push to NuGet
+        run: |
+          dotnet nuget push "artifacts/nuget-packages/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_USER }}
 
       - name: Upload assets and publish draft
         env:
@@ -82,9 +103,13 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           for dir in artifacts/*/; do
+            [[ "$dir" == *nuget-packages* ]] && continue
             for file in "$dir"*; do
               echo "Uploading: $file"
               gh release upload "$TAG" "$file" --repo "$REPO"
             done
+          done
+          for nupkg in artifacts/nuget-packages/*.nupkg; do
+            gh release upload "$TAG" "$nupkg" --repo "$REPO"
           done
           gh release edit "$TAG" --repo "$REPO" --draft=false
