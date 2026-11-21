@@ -65,7 +65,7 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
 
-  upload-assets:
+  publish-release:
     needs: [release-please, build]
     runs-on: ubuntu-latest
     permissions:
@@ -75,7 +75,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Upload to release
+      - name: Upload assets and publish draft
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
@@ -84,6 +84,7 @@ jobs:
           for dir in artifacts/*/; do
             for file in "$dir"*; do
               echo "Uploading: $file"
-              gh release upload "$TAG" "$file" --repo "$REPO" --clobber
+              gh release upload "$TAG" "$file" --repo "$REPO"
             done
           done
+          gh release edit "$TAG" --repo "$REPO" --draft=false
