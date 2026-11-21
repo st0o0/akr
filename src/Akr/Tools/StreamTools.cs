@@ -24,7 +24,16 @@ public sealed class StreamTools
             return "No Akka.NET source available.";
         }
 
-        var results = SourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);
+        IReadOnlyList<SearchResult> results;
+        try
+        {
+            results = SourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);
+        }
+        catch (RegexParseException ex)
+        {
+            return $"Invalid regex pattern: {ex.Message}";
+        }
+
         if (results.Count == 0)
         {
             return $"No matches found for pattern: {query}";

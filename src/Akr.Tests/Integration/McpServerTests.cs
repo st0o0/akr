@@ -4,6 +4,7 @@ using System.Text;
 using Akr.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -22,7 +23,6 @@ public sealed class McpServerTests : IAsyncDisposable
     public McpServerTests()
     {
         _cacheRoot = Path.Combine(Path.GetTempPath(), $"akr-mcp-test-{Guid.NewGuid()}");
-        GitHubClient.CacheRoot = _cacheRoot;
 
         foreach (var repo in Akr.Registry.RepoRegistry.GetAllRepos())
         {
@@ -92,8 +92,10 @@ public sealed class McpServerTests : IAsyncDisposable
         var services = new ServiceCollection();
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
 
-        services.AddHttpClient<GitHubClient>()
-            .ConfigurePrimaryHttpMessageHandler(() => new FakeGitHubHandler());
+        services.AddSingleton(new GitHubClient(
+            new HttpClient(new FakeGitHubHandler()),
+            NullLogger<GitHubClient>.Instance,
+            _cacheRoot));
 
         services
             .AddMcpServer()
@@ -177,6 +179,19 @@ public sealed class McpServerTests : IAsyncDisposable
 
         var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
         Assert.Contains("No matches found", text);
+    }
+
+    [Fact]
+    public async Task SearchSource_invalid_regex_returns_error()
+    {
+        var client = await GetClientAsync(TestContext.Current.CancellationToken);
+        var result = await client.CallToolAsync(
+            "search_source",
+            new Dictionary<string, object?> { ["query"] = "[unclosed" },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+        Assert.Contains("Invalid regex", text);
     }
 
     [Fact]

@@ -7,35 +7,65 @@ using Microsoft.Extensions.Logging;
 
 namespace Akr;
 
-public sealed class GitHubClient(HttpClient httpClient, ILogger<GitHubClient> logger)
+public sealed class GitHubClient
 {
-    internal static string CacheRoot { get; set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".akr", "sources");
-
+    private readonly string _cacheRoot;
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<GitHubClient> _logger;
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
+
+    public GitHubClient(HttpClient httpClient, ILogger<GitHubClient> logger, string? cacheRoot = null)
+    {
+        _httpClient = httpClient;
+        _logger = logger;
+        _cacheRoot = cacheRoot ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".akr", "sources");
+    }
 
     public async Task<string> EnsureSourceAsync(string repo, CancellationToken cancellationToken = default)
     {
         var version = await ResolveLatestAsync(repo, cancellationToken);
         var repoName = repo.Contains('/') ? repo[(repo.IndexOf('/') + 1)..] : repo;
-        var targetPath = Path.Combine(CacheRoot, repoName, version);
+        var targetPath = Path.Combine(_cacheRoot, repoName, version);
 
         if (Directory.Exists(targetPath))
         {
             return targetPath;
         }
 
-        foreach (var tag in new[] { version, $"v{version}" })
+        var tempPath = targetPath + ".tmp";
+        try
         {
+            if (Directory.Exists(tempPath))
+            {
+                Directory.Delete(tempPath, true);
+            }
+
             try
             {
-                await FetchArchiveAsync(repo, tag, targetPath, cancellationToken);
-                return targetPath;
+                await FetchArchiveAsync(repo, version, tempPath, cancellationToken);
             }
-            catch (SourceFetchException) when (tag == version)
+            catch (SourceFetchException)
             {
-                logger.LogDebug("Tag {Tag} not found for {Repo}, trying v-prefixed", tag, repo);
+                _logger.LogDebug("Tag {Tag} failed for {Repo}, trying v-prefixed", version, repo);
+                if (Directory.Exists(tempPath))
+                {
+                    Directory.Delete(tempPath, true);
+                }
+
+                await FetchArchiveAsync(repo, $"v{version}", tempPath, cancellationToken);
             }
+
+            Directory.Move(tempPath, targetPath);
+        }
+        catch
+        {
+            if (Directory.Exists(tempPath))
+            {
+                Directory.Delete(tempPath, true);
+            }
+
+            throw;
         }
 
         return targetPath;
@@ -65,36 +95,36 @@ public sealed class GitHubClient(HttpClient httpClient, ILogger<GitHubClient> lo
         }
 
         var url = $"https://api.github.com/repos/{repo}/releases/latest";
-        logger.LogInformation("Resolving latest version for {Repo}", repo);
+        _logger.LogInformation("Resolving latest version for {Repo}", repo);
 
-        using var response = await httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        using var response = await _httpClient.GetAsync(url, cancellationToken);
+        ThrowIfFailed(response, repo, "latest");
 
         using var doc = await JsonDocument.ParseAsync(
             await response.Content.ReadAsStreamAsync(cancellationToken),
             cancellationToken: cancellationToken);
 
-        var version = doc.RootElement.GetProperty("tag_name").GetString()
-            ?? throw new SourceFetchException($"No tag_name in latest release for '{repo}'");
+        if (doc.RootElement.ValueKind != JsonValueKind.Object ||
+            !doc.RootElement.TryGetProperty("tag_name", out var tagElement) ||
+            tagElement.ValueKind != JsonValueKind.String ||
+            string.IsNullOrEmpty(tagElement.GetString()))
+        {
+            throw new SourceFetchException($"No tag_name in latest release for '{repo}'");
+        }
 
+        var version = tagElement.GetString()!;
         _latestVersions[repo] = version;
-        logger.LogInformation("Resolved {Repo} → {Version}", repo, version);
+        _logger.LogInformation("Resolved {Repo} -> {Version}", repo, version);
         return version;
     }
 
     private async Task FetchArchiveAsync(string repo, string tag, string targetPath, CancellationToken cancellationToken)
     {
         var url = $"https://github.com/{repo}/archive/refs/tags/{tag}.tar.gz";
-        logger.LogInformation("Fetching {Repo} at tag {Tag}", repo, tag);
+        _logger.LogInformation("Fetching {Repo} at tag {Tag}", repo, tag);
 
-        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            throw new SourceFetchException($"Tag '{tag}' not found in repo '{repo}'");
-        }
-
-        response.EnsureSuccessStatusCode();
+        using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        ThrowIfFailed(response, repo, tag);
 
         await using var gzipStream = new GZipStream(
             await response.Content.ReadAsStreamAsync(cancellationToken),
@@ -103,7 +133,25 @@ public sealed class GitHubClient(HttpClient httpClient, ILogger<GitHubClient> lo
         Directory.CreateDirectory(targetPath);
         await ExtractTarAsync(gzipStream, targetPath, cancellationToken);
 
-        logger.LogInformation("Extracted {Repo}@{Tag} to {Path}", repo, tag, targetPath);
+        _logger.LogInformation("Extracted {Repo}@{Tag} to {Path}", repo, tag, targetPath);
+    }
+
+    private static void ThrowIfFailed(HttpResponseMessage response, string repo, string tag)
+    {
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new SourceFetchException($"Tag '{tag}' not found in repo '{repo}'");
+        }
+
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+        {
+            throw new SourceFetchException($"GitHub rate limit hit for repo '{repo}'. Try again later or set GITHUB_TOKEN.");
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new SourceFetchException($"GitHub returned {(int)response.StatusCode} for repo '{repo}' tag '{tag}'");
+        }
     }
 
     private static async Task ExtractTarAsync(Stream stream, string targetPath, CancellationToken cancellationToken)
