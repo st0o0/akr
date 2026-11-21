@@ -4,64 +4,128 @@
 [![NuGet](https://img.shields.io/nuget/v/Akr?style=flat-square)](https://www.nuget.org/packages/Akr)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
-Akka.NET source intelligence for AI agents. An [MCP](https://modelcontextprotocol.io/) server that gives agents fast, token-efficient access to Akka.NET source code directly from GitHub - no ILSpy decompilation needed.
+Akka.NET source intelligence for AI agents. An [MCP](https://modelcontextprotocol.io/) server that gives agents fast, token-efficient access to Akka.NET source code directly from GitHub — no ILSpy decompilation needed.
 
-Zero config. Resolves latest Akka.NET versions automatically. Publishes as a small native AOT binary.
-
-## Tools
-
-| Tool | What it does | Token savings vs ILSpy |
-|------|-------------|------------------------|
-| `search_source` | Regex search across all Akka.NET source | ~85% |
-| `lookup_type` | Find a type, return its source file | ~80% |
-| `type_members` | Compact member signatures (no bodies) | ~90% |
-| `hosting_extensions` | List `With*`/`Add*` Akka.Hosting methods | ~90% |
-| `config_reference` | HOCON defaults from `reference.conf` | ~90% |
-| `stream_stages` | Catalog of Akka.Streams built-in stages | ~93% |
+Zero config. Resolves latest Akka.NET versions automatically. Distributed as a dotnet tool.
 
 ## Quick Start
 
-### Install
+### 1. Add to your project
 
 ```bash
-dotnet tool install --global Akr
+dotnet tool install akr
 ```
 
-### Configure your MCP client
+This adds akr to your `.config/dotnet-tools.json`. Run `dotnet tool restore` on any machine to install it.
+
+### 2. Add MCP config
+
+Create `.mcp.json` in your repo root:
 
 ```json
 {
   "mcpServers": {
     "akr": {
-      "command": "akr"
+      "command": "dotnet",
+      "args": ["tool", "run", "akr"]
     }
   }
 }
 ```
 
-That's it. No API keys, no config files, no version pinning needed.
+Your MCP client (Claude Code, VS Code, Cursor) discovers this automatically. Done.
+
+### Alternative: global install
+
+```bash
+dotnet tool install --global Akr
+```
+
+Then configure your MCP client with `"command": "akr"` directly.
+
+## Tools (33)
+
+### Core (Phase 1)
+
+| Tool | What it does |
+|------|-------------|
+| `search_source` | Regex search across all Akka.NET source |
+| `lookup_type` | Find a type, return its source file |
+| `type_members` | Compact member signatures (no bodies) |
+| `hosting_extensions` | List `With*`/`Add*` Akka.Hosting methods |
+| `config_reference` | HOCON defaults from `reference.conf` |
+| `stream_stages` | Catalog of Akka.Streams built-in stages |
+
+### Deep Intelligence (Phase 2)
+
+| Tool | What it does |
+|------|-------------|
+| `type_hierarchy` | Full inheritance trees (up and down) |
+| `find_implementations` | All implementations of an interface |
+| `find_messages` | Message types handled by an actor |
+| `message_protocol` | Request/response pairs and events |
+| `virtual_methods` | Overridable methods with lifecycle ordering |
+| `supervision_defaults` | Default supervision strategies |
+
+### Streams & Persistence (Phase 3)
+
+| Tool | What it does |
+|------|-------------|
+| `stage_detail` | Full source of a specific stream stage |
+| `graph_dsl_operators` | GraphDSL operators with shapes |
+| `stream_attributes` | Configurable stream attributes with defaults |
+| `journal_plugins` | Journal plugin catalog with config |
+| `snapshot_plugins` | Snapshot store catalog with config |
+| `persistence_query` | ReadJournal implementations |
+| `event_adapter_chain` | Event adapter configuration |
+
+### Config & Migration (Phase 4)
+
+| Tool | What it does |
+|------|-------------|
+| `config_tree` | Hierarchical config with Hosting/HOCON layers |
+| `hosting_to_hocon` | Bidirectional Hosting API ↔ HOCON mapping |
+| `hosting_startup_order` | Registration ordering constraints |
+| `config_diff` | Config key listing per version |
+| `changelog` | Changelog/release notes search |
+
+### Ecosystem (Phase 5)
+
+| Tool | What it does |
+|------|-------------|
+| `serializer_bindings` | Serializer-to-type mapping |
+| `serializer_detail` | Serializer source and config |
+| `serialization_manifest` | Persistence event manifests |
+| `hosting_di_patterns` | DI integration patterns |
+| `hosting_testkit` | TestKit comparison (classic vs Hosting) |
+| `testkit_helpers` | TestKit utility catalog |
+| `cluster_events` | Cluster event lifecycle |
+| `extension_points` | Provider/plugin interfaces |
+| `dependency_graph` | Package dependency map |
 
 ## Usage Examples
 
 ```
-Agent: search_source(query: "Receive<T>")
-  → Finds all Receive<T> calls across Akka source, with 2 lines context
+search_source(query: "Receive<T>")
+  → Finds all Receive<T> calls across Akka source, 2 lines context
 
-Agent: type_members(type: "Props")
-  → Props : object
+type_members(type: "Props")
+  → Props : IEquatable<Props>, ISurrogated
     Properties: Type Type { get; }
     Methods: static Props Create<T>(), static Props Create(Type type)
     Constructors: Props(Type type)
 
-Agent: hosting_extensions(filter: "Persistence")
-  → Lists all WithSqlPersistence, WithJournalAndSnapshot, ... signatures
+hosting_extensions(filter: "Persistence")
+  → WithSqlPersistence, WithJournalAndSnapshot, ... signatures
 
-Agent: config_reference(path: "akka.persistence")
-  → Returns the full HOCON config block with all defaults
+config_reference(path: "akka.persistence")
+  → Full HOCON config block with all defaults
 
-Agent: stream_stages(filter: "fan")
-  → Fan-In: Merge, MergePreferred, ...
-    Fan-Out: Broadcast, Balance, ...
+find_implementations(type: "IActorRef")
+  → ActorRefBase, LocalActorRef, RemoteActorRef, ...
+
+type_hierarchy(type: "ActorBase")
+  → UntypedActor, ReceiveActor, ActorBase → IInternalActor
 ```
 
 ## Covered Repositories
@@ -76,29 +140,32 @@ Agent: stream_stages(filter: "fan")
 
 ## How It Works
 
-1. On first tool call, akr fetches the latest release archive from each repo
-2. Archives are extracted to `~/.akr/sources/{repo}/{version}/`
-3. All subsequent calls use the local cache - no network requests
-4. Tools search cached source using regex and text parsing (no Roslyn, no reflection)
+1. On first tool call, akr fetches the latest release archive from each repo (~44 MB total)
+2. Archives are extracted atomically to `~/.akr/sources/{repo}/{version}/`
+3. All subsequent calls use the local cache — no network requests
+4. Tools search cached source using regex and text parsing
 
 No GitHub token required. Archives for public repos are freely downloadable.
 
-## Configuration
+## Keeping akr updated
 
-akr works out of the box with no configuration. Optional settings:
+akr is a local dotnet tool pinned in `.config/dotnet-tools.json`. When a new version is released:
 
-| Variable | Description |
-|----------|-------------|
-| `AKKA_VERSIONS` | Pin specific versions: `Akka=1.5.30,Akka.Hosting=1.5.71` |
+```bash
+dotnet tool update akr
+```
+
+If you use [Renovate](https://github.com/renovatebot/renovate), it bumps the version automatically.
 
 ## Development
 
 ```bash
 git clone https://github.com/st0o0/akr.git
 cd akr
+dotnet tool restore
 dotnet build src/akr.slnx
-dotnet run --project src/Akr.Tests/Akr.Tests.csproj    # run tests
-dotnet run --project src/Akr/Akr.csproj                 # run server
+dotnet run --project src/Akr.Tests/Akr.Tests.csproj
+dotnet run --project src/Akr/Akr.csproj
 ```
 
 ## License
