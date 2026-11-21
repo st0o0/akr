@@ -1,5 +1,4 @@
 <Solution>
   <Project Path="Akr/Akr.csproj" />
   <Project Path="Akr.Tests/Akr.Tests.csproj" />
-  <Project Path="Akr.Architecture.Tests/Akr.Architecture.Tests.csproj" />
 </Solution>

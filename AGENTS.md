@@ -17,19 +17,14 @@ All code, specs, docs, and communication in English.
 ```
 src/
   akr.slnx
-  Akr/                            # Host: MCP server (stdio transport), Program.cs
-  Akr.Core/                       # Domain logic: source fetching, caching, search
+  Akr/                            # Everything: MCP server, tools, GitHub client, registry
   Akr.Tests/                      # Unit tests (xUnit v3)
-  Akr.Tests.Shared/               # Shared test infrastructure
-  Akr.Architecture.Tests/         # ArchUnitNET conventions
 ```
 
 ## Architecture guardrails
 
-- **Reference direction:** Akr (Host) -> Akr.Core. Never upward.
-- **Core is a plain library.** No MCP framework references, no hosting, no I/O transport.
-  Core provides source intelligence; the Host wires it into MCP.
-- **ArchUnitNET** tests enforce reference direction and MCP SDK isolation.
+- **Single project.** Everything in one project — no unnecessary abstraction layers.
+  `GitHubClient` handles fetching/caching, tools call it directly.
 - **Hosting-first.** Tools and responses always prefer `Akka.Hosting` APIs over HOCON.
   HOCON is the fallback, not the default.
 - **Token-efficient.** Return signatures and summaries by default, full source on demand.
@@ -51,7 +46,6 @@ Tests are xUnit v3 on Microsoft.Testing.Platform - `dotnet run`, **not** `dotnet
 
 ```powershell
 dotnet run --project src/Akr.Tests/Akr.Tests.csproj
-dotnet run --project src/Akr.Architecture.Tests/Akr.Architecture.Tests.csproj
 ```
 
 **NSubstitute** for mocking plain interfaces. **Verify** for snapshot testing.
