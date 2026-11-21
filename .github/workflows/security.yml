@@ -1,0 +1,18 @@
+name: Security
+
+on:
+  pull_request:
+    paths:
+      - "src/Directory.Packages.props"
+      - "src/**/*.csproj"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security:
+    uses: st0o0/github-workflows/.github/workflows/security.yml@main

@@ -1,0 +1,14 @@
+name: Labels
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  labels:
+    uses: st0o0/github-workflows/.github/workflows/labels.yml@main
