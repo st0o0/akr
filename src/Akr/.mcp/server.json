@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "description": "MCP server providing Akka.NET source intelligence for AI agents",
+  "name": "io.github.st0o0/akr",
+  "version": "0.1.0-alpha",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "Akr",
+      "version": "0.1.0-alpha",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": []
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/st0o0/akr",
+    "source": "github"
+  }
+}
