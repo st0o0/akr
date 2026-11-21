@@ -18,6 +18,8 @@ public sealed class McpSetup : ISetup<IServiceCollection>
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithTools<SearchSourceTool>()
-            .WithTools<LookupTypeTool>();
+            .WithTools<LookupTypeTool>()
+            .WithTools<TypeMembersTool>()
+            .WithTools<HostingExtensionsTool>();
     }
 }

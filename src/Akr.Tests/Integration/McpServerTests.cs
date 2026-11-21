@@ -47,7 +47,23 @@ public sealed class McpServerTests : IAsyncDisposable
             {
                 public sealed class Props
                 {
+                    public Type Type { get; }
                     public static Props Create<T>() where T : ActorBase, new() => new();
+                    public static Props Create(Type type) => new();
+                    public Props(Type type) { Type = type; }
+                }
+            }
+            """);
+
+        var hostingRoot = Path.Combine(_cacheRoot, "Akka.Hosting", "1.5.75");
+        WriteSource(hostingRoot, "src/Akka.Hosting/AkkaHostingExtensions.cs", """
+            namespace Akka.Hosting
+            {
+                public static class AkkaHostingExtensions
+                {
+                    public static AkkaConfigurationBuilder WithClustering(this AkkaConfigurationBuilder builder, ClusterOptions options) { return builder; }
+                    public static AkkaConfigurationBuilder WithRemoting(this AkkaConfigurationBuilder builder, RemoteOptions options) { return builder; }
+                    public static AkkaConfigurationBuilder AddHoconFile(this AkkaConfigurationBuilder builder, string path) { return builder; }
                 }
             }
             """);
@@ -64,7 +80,9 @@ public sealed class McpServerTests : IAsyncDisposable
                 _clientToServer.Reader.AsStream(),
                 _serverToClient.Writer.AsStream())
             .WithTools<SearchSourceTool>()
-            .WithTools<LookupTypeTool>();
+            .WithTools<LookupTypeTool>()
+            .WithTools<TypeMembersTool>()
+            .WithTools<HostingExtensionsTool>();
 
         _serviceProvider = services.BuildServiceProvider(validateScopes: true);
         var server = _serviceProvider.GetRequiredService<McpServer>();
@@ -108,6 +126,8 @@ public sealed class McpServerTests : IAsyncDisposable
         var names = tools.Select(t => t.Name).ToList();
         Assert.Contains("search_source", names);
         Assert.Contains("lookup_type", names);
+        Assert.Contains("type_members", names);
+        Assert.Contains("hosting_extensions", names);
     }
 
     [Fact]
@@ -177,6 +197,49 @@ public sealed class McpServerTests : IAsyncDisposable
         var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
         Assert.Contains("Create<T>", text);
         Assert.Contains("namespace Akka.Actor", text);
+    }
+
+    [Fact]
+    public async Task TypeMembers_returns_structured_signatures()
+    {
+        var client = await GetClientAsync(TestContext.Current.CancellationToken);
+        var result = await client.CallToolAsync(
+            "type_members",
+            new Dictionary<string, object?> { ["type"] = "Props" },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+        Assert.Contains("Props", text);
+        Assert.Contains("Create<T>", text);
+        Assert.Contains("Create(Type type)", text);
+    }
+
+    [Fact]
+    public async Task HostingExtensions_finds_with_methods()
+    {
+        var client = await GetClientAsync(TestContext.Current.CancellationToken);
+        var result = await client.CallToolAsync(
+            "hosting_extensions",
+            new Dictionary<string, object?>(),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+        Assert.Contains("WithClustering", text);
+        Assert.Contains("WithRemoting", text);
+        Assert.Contains("AddHoconFile", text);
+    }
+
+    [Fact]
+    public async Task HostingExtensions_filters_by_keyword()
+    {
+        var client = await GetClientAsync(TestContext.Current.CancellationToken);
+        var result = await client.CallToolAsync(
+            "hosting_extensions",
+            new Dictionary<string, object?> { ["filter"] = "NonExistentFilter" },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+        Assert.Contains("No hosting extensions found", text);
     }
 
     private static void WriteSource(string root, string relativePath, string content)
