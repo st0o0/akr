@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "akr": {
+      "command": "dotnet",
+      "args": ["tool", "run", "akr"]
+    }
+  }
+}
