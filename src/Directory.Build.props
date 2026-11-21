@@ -11,9 +11,6 @@
 
     <PropertyGroup Condition="$(MSBuildProjectName.Contains('Tests'))">
         <IsPackable>false</IsPackable>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="$(MSBuildProjectName.Contains('Tests')) AND !$(MSBuildProjectName.EndsWith('Tests.Shared'))">
         <IsTestProject>true</IsTestProject>
     </PropertyGroup>
 

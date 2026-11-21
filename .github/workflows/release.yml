@@ -15,3 +15,75 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+
+  build:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: akr-linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            artifact: akr-linux-arm64
+          - os: windows-latest
+            rid: win-x64
+            artifact: akr-win-x64.exe
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: akr-osx-arm64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: src/global.json
+
+      - name: Publish AOT
+        run: >-
+          dotnet publish src/Akr/Akr.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          -p:Version=${{ needs.release-please.outputs.version }}
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          src="src/Akr/bin/Release/net10.0/${{ matrix.rid }}/publish/Akr"
+          if [[ "${{ matrix.rid }}" == win-* ]]; then
+            src="${src}.exe"
+          fi
+          cp "$src" "${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  upload-assets:
+    needs: [release-please, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          for dir in artifacts/*/; do
+            for file in "$dir"*; do
+              echo "Uploading: $file"
+              gh release upload "$TAG" "$file" --repo "$REPO" --clobber
+            done
+          done
