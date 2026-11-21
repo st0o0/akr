@@ -68,6 +68,27 @@ public sealed class McpServerTests : IAsyncDisposable
             }
             """);
 
+        WriteSource(sourceRoot, "src/core/Akka/reference.conf", """
+            akka {
+                actor {
+                    default-dispatcher {
+                        type = Dispatcher
+                        throughput = 300
+                    }
+                }
+                loglevel = INFO
+            }
+            """);
+
+        WriteSource(sourceRoot, "src/core/Akka.Streams/Dsl/Stages/SelectAsyncStage.cs", """
+            namespace Akka.Streams.Implementation
+            {
+                public class SelectAsync<TIn, TOut> : GraphStage<FlowShape<TIn, TOut>>
+                {
+                }
+            }
+            """);
+
         var services = new ServiceCollection();
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
 
@@ -82,7 +103,9 @@ public sealed class McpServerTests : IAsyncDisposable
             .WithTools<SearchSourceTool>()
             .WithTools<LookupTypeTool>()
             .WithTools<TypeMembersTool>()
-            .WithTools<HostingExtensionsTool>();
+            .WithTools<HostingExtensionsTool>()
+            .WithTools<ConfigReferenceTool>()
+            .WithTools<StreamStagesTool>();
 
         _serviceProvider = services.BuildServiceProvider(validateScopes: true);
         var server = _serviceProvider.GetRequiredService<McpServer>();
@@ -128,6 +151,8 @@ public sealed class McpServerTests : IAsyncDisposable
         Assert.Contains("lookup_type", names);
         Assert.Contains("type_members", names);
         Assert.Contains("hosting_extensions", names);
+        Assert.Contains("config_reference", names);
+        Assert.Contains("stream_stages", names);
     }
 
     [Fact]
@@ -227,6 +252,33 @@ public sealed class McpServerTests : IAsyncDisposable
         Assert.Contains("WithClustering", text);
         Assert.Contains("WithRemoting", text);
         Assert.Contains("AddHoconFile", text);
+    }
+
+    [Fact]
+    public async Task ConfigReference_returns_hocon_config()
+    {
+        var client = await GetClientAsync(TestContext.Current.CancellationToken);
+        var result = await client.CallToolAsync(
+            "config_reference",
+            new Dictionary<string, object?>(),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+        Assert.Contains("throughput", text);
+        Assert.Contains("300", text);
+    }
+
+    [Fact]
+    public async Task StreamStages_finds_stages()
+    {
+        var client = await GetClientAsync(TestContext.Current.CancellationToken);
+        var result = await client.CallToolAsync(
+            "stream_stages",
+            new Dictionary<string, object?>(),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var text = string.Join("", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+        Assert.Contains("SelectAsync", text);
     }
 
     [Fact]

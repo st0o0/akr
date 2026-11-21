@@ -20,6 +20,8 @@ public sealed class McpSetup : ISetup<IServiceCollection>
             .WithTools<SearchSourceTool>()
             .WithTools<LookupTypeTool>()
             .WithTools<TypeMembersTool>()
-            .WithTools<HostingExtensionsTool>();
+            .WithTools<HostingExtensionsTool>()
+            .WithTools<ConfigReferenceTool>()
+            .WithTools<StreamStagesTool>();
     }
 }
