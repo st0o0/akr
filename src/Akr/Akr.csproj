@@ -8,8 +8,14 @@
     <PackageType>McpServer</PackageType>
 
     <PackageId>Akr</PackageId>
+    <Authors>st0o0</Authors>
     <PackageTags>AI; MCP; Akka.NET; server; stdio</PackageTags>
     <Description>MCP server providing Akka.NET source intelligence for AI agents.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/st0o0/akr</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/st0o0/akr</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +31,7 @@
 
   <ItemGroup>
     <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>

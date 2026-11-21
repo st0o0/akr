@@ -45,8 +45,6 @@ Then configure your MCP client with `"command": "akr"` directly.
 
 ## Tools (33)
 
-### Core (Phase 1)
-
 | Tool | What it does |
 |------|-------------|
 | `search_source` | Regex search across all Akka.NET source |
@@ -55,22 +53,12 @@ Then configure your MCP client with `"command": "akr"` directly.
 | `hosting_extensions` | List `With*`/`Add*` Akka.Hosting methods |
 | `config_reference` | HOCON defaults from `reference.conf` |
 | `stream_stages` | Catalog of Akka.Streams built-in stages |
-
-### Deep Intelligence (Phase 2)
-
-| Tool | What it does |
-|------|-------------|
 | `type_hierarchy` | Full inheritance trees (up and down) |
 | `find_implementations` | All implementations of an interface |
 | `find_messages` | Message types handled by an actor |
 | `message_protocol` | Request/response pairs and events |
 | `virtual_methods` | Overridable methods with lifecycle ordering |
 | `supervision_defaults` | Default supervision strategies |
-
-### Streams & Persistence (Phase 3)
-
-| Tool | What it does |
-|------|-------------|
 | `stage_detail` | Full source of a specific stream stage |
 | `graph_dsl_operators` | GraphDSL operators with shapes |
 | `stream_attributes` | Configurable stream attributes with defaults |
@@ -78,21 +66,11 @@ Then configure your MCP client with `"command": "akr"` directly.
 | `snapshot_plugins` | Snapshot store catalog with config |
 | `persistence_query` | ReadJournal implementations |
 | `event_adapter_chain` | Event adapter configuration |
-
-### Config & Migration (Phase 4)
-
-| Tool | What it does |
-|------|-------------|
 | `config_tree` | Hierarchical config with Hosting/HOCON layers |
-| `hosting_to_hocon` | Bidirectional Hosting API ↔ HOCON mapping |
+| `hosting_to_hocon` | Bidirectional Hosting API to HOCON mapping |
 | `hosting_startup_order` | Registration ordering constraints |
 | `config_diff` | Config key listing per version |
 | `changelog` | Changelog/release notes search |
-
-### Ecosystem (Phase 5)
-
-| Tool | What it does |
-|------|-------------|
 | `serializer_bindings` | Serializer-to-type mapping |
 | `serializer_detail` | Serializer source and config |
 | `serialization_manifest` | Persistence event manifests |
