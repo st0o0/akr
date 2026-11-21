@@ -19,6 +19,10 @@ public sealed class McpSetup : ISetup<IServiceCollection>
             .WithStdioServerTransport()
             .WithTools<TypeTools>()
             .WithTools<HostingTools>()
-            .WithTools<StreamTools>();
+            .WithTools<StreamTools>()
+            .WithTools<DeepIntelligenceTools>()
+            .WithTools<StreamPersistenceTools>()
+            .WithTools<ConfigMigrationTools>()
+            .WithTools<EcosystemTools>();
     }
 }
