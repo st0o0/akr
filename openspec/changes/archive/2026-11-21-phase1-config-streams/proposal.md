@@ -1,9 +1,9 @@
 ## Why
 
 Agents constantly look up HOCON config defaults by decompiling `reference.conf` files or
-searching docs — ~1500 tokens per lookup. `config_reference` returns the relevant config
+searching docs  -  ~1500 tokens per lookup. `config_reference` returns the relevant config
 section directly from source. Stream stage discovery requires decompiling multiple Akka.Streams
-namespaces (~3000 tokens) — `stream_stages` returns a compact catalog.
+namespaces (~3000 tokens)  -  `stream_stages` returns a compact catalog.
 
 ## What Changes
 

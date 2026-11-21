@@ -1,13 +1,13 @@
 ## Why
 
-`lookup_type` returns full files or rough summaries — agents typically want just the member
+`lookup_type` returns full files or rough summaries  -  agents typically want just the member
 signatures. `type_members` saves ~700 tokens per call by returning structured, compact output.
-`hosting_extensions` is the second most requested lookup pattern — agents constantly need to
+`hosting_extensions` is the second most requested lookup pattern  -  agents constantly need to
 know which `With*`/`Add*` extension methods exist for configuring Akka.NET via Hosting API.
 
 ## What Changes
 
-- **`type_members` tool**: Returns compact member signatures for a C# type — properties, methods,
+- **`type_members` tool**: Returns compact member signatures for a C# type  -  properties, methods,
   constructors, events, grouped and formatted. No method bodies, no attributes noise. Builds on
   existing `TypeFinder` infrastructure.
 - **`hosting_extensions` tool**: Searches Akka.Hosting source for `With*`/`Add*` extension methods,

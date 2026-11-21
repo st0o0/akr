@@ -31,7 +31,7 @@ Output format per member:
 [access] [static] [return-type] Name([params])
 ```
 
-Grouped by kind (Properties, Methods, Constructors, Events). No method bodies — just
+Grouped by kind (Properties, Methods, Constructors, Events). No method bodies  -  just
 the signature line, trimmed.
 
 This is good enough without Roslyn. Edge cases (expression-bodied members, multi-line
@@ -42,7 +42,7 @@ signatures) are handled by reading until the opening brace or semicolon.
 ```
 Name: type_members
 Parameters:
-  - type: string (required) — type name
+  - type: string (required)  -  type name
 Returns:
   TypeName : BaseType, IInterface1, IInterface2
   
@@ -65,7 +65,7 @@ If multiple matches (partial classes), merge members from all files.
 ```
 Name: hosting_extensions
 Parameters:
-  - filter: string (optional) — keyword to filter (e.g. "Persistence", "Cluster")
+  - filter: string (optional)  -  keyword to filter (e.g. "Persistence", "Cluster")
 Returns:
   Grouped by source file (= feature area):
   

@@ -73,7 +73,7 @@ calls. The server is ready instantly; the first tool call pays the fetch cost.
 ```
 
 `InvariantGlobalization` eliminates ~10 MB of ICU data. We don't need locale-specific
-formatting — source code is ASCII/UTF-8.
+formatting  -  source code is ASCII/UTF-8.
 
 ### 4. Drop Serilog, keep built-in logging
 
@@ -98,7 +98,7 @@ Each new tool needs one line in McpSetup. Acceptable trade-off for AOT compatibi
 
 Two categories:
 
-**Static patterns** (TypeFinder): Use `[GeneratedRegex]` source generator — compiled at
+**Static patterns** (TypeFinder): Use `[GeneratedRegex]` source generator  -  compiled at
 build time, zero runtime cost, fully AOT-safe.
 
 **Dynamic patterns** (SearchSourceTool, user input): Use `RegexOptions.NonBacktracking`
@@ -109,7 +109,7 @@ for pathological ones.
 ### 7. JSON serialization for GitHub API
 
 The `ResolveLatestVersionAsync` method parses a small JSON response (`tag_name` field).
-Current code uses `JsonDocument` (read-only DOM) which is fully AOT-safe — no source
+Current code uses `JsonDocument` (read-only DOM) which is fully AOT-safe  -  no source
 generator needed. Keep as-is.
 
 ## Risks / Trade-offs

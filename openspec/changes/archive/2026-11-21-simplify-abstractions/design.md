@@ -34,7 +34,7 @@ public sealed class GitHubClient(HttpClient httpClient, ILogger<GitHubClient> lo
 }
 ```
 
-Cache dir: `~/.akr/sources/{repoName}/{version}/`. Check `Directory.Exists` — that's the
+Cache dir: `~/.akr/sources/{repoName}/{version}/`. Check `Directory.Exists`  -  that's the
 whole cache layer, no interface needed.
 
 ### 2. Delete Akr.Core, merge into Akr

@@ -1,6 +1,6 @@
 ## Context
 
-Akr has 4 tools. The remaining Phase 1 tools are config lookup and stream stage catalog —
+Akr has 4 tools. The remaining Phase 1 tools are config lookup and stream stage catalog  - 
 both are text-search based, no Roslyn needed.
 
 ## Goals / Non-Goals

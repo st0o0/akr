@@ -23,12 +23,12 @@ src/
 
 ## Architecture guardrails
 
-- **Single project.** Everything in one project — no unnecessary abstraction layers.
+- **Single project.** Everything in one project - no unnecessary abstraction layers.
   `GitHubClient` handles fetching/caching, tools call it directly.
 - **Hosting-first.** Tools and responses always prefer `Akka.Hosting` APIs over HOCON.
   HOCON is the fallback, not the default.
 - **Token-efficient.** Return signatures and summaries by default, full source on demand.
-- **Latest-by-default.** No config needed — server resolves latest Akka versions automatically.
+- **Latest-by-default.** No config needed - server resolves latest Akka versions automatically.
 - **Distributed as dotnet tool.** `dotnet tool install --global Akr`. Explicit MCP tool
   registration (no assembly scanning).
 

@@ -1,7 +1,7 @@
 ## Why
 
 The MCP server should be distributable as a small native executable (`akr.exe` / `akr`)
-that works out of the box with zero config — like `rg` or `fd`. Currently it requires
+that works out of the box with zero config  -  like `rg` or `fd`. Currently it requires
 manual version configuration via `AKKA_VERSIONS`, ships with unused dependencies
 (Roslyn, Serilog), and the name `akka-mcp` is generic. This change makes the server
 lean, AOT-compiled, zero-config, and properly named.
@@ -44,4 +44,4 @@ lean, AOT-compiled, zero-config, and properly named.
 - **MCP tool registration**: explicit generic calls in McpSetup
 - **Binary size**: ~60-80 MB (self-contained) → ~10-15 MB (native AOT)
 - **Startup time**: ~200ms (JIT) → ~20ms (AOT)
-- **No breaking changes** to MCP tool interface — tools work identically
+- **No breaking changes** to MCP tool interface  -  tools work identically

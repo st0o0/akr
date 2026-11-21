@@ -10,12 +10,12 @@ where to find source code, how to cache it, and how the first two MCP tools (`se
 
 **Goals:**
 
-- Config-driven version management — versions come from server environment, not project scanning
+- Config-driven version management  -  versions come from server environment, not project scanning
 - Fetch and cache Akka.NET source from GitHub for 5 repos (core, Hosting, Management,
   Persistence.Sql, Persistence.MongoDB)
 - Provide a `SourceProvider` facade that all MCP tools use to access source
 - Ship two usable MCP tools: `search_source` (grep) and `lookup_type` (find type, return source)
-- Lazy fetching — download source on first access, not at startup
+- Lazy fetching  -  download source on first access, not at startup
 
 **Non-Goals:**
 
@@ -95,7 +95,7 @@ Akka.NET adds new repos (rare, ~yearly). No need for external config or runtime 
 "Akka.Persistence.MongoDb.Hosting" → Path: "src/Akka.Persistence.MongoDb.Hosting"
 ```
 
-24 packages across 5 repos. Note: Akka.Hosting repo is archived (Nov 2026, read-only) —
+24 packages across 5 repos. Note: Akka.Hosting repo is archived (Nov 2026, read-only)  - 
 source is still accessible but won't change. The Management repo has a non-standard nested
 layout under `src/management/` and `src/discovery/<provider>/`.
 
@@ -118,7 +118,7 @@ small (~24 entries). Code is easier to test.
         ...
 ```
 
-Immutable cache — once extracted, never updated. Delete to invalidate. No TTL needed because
+Immutable cache  -  once extracted, never updated. Delete to invalidate. No TTL needed because
 released versions don't change.
 
 **Why home directory:** The cache is user-scoped, not project-scoped. Multiple projects share
@@ -147,9 +147,9 @@ First call per version pays the fetch cost; subsequent calls are instant.
 ```
 Name: search_source
 Parameters:
-  - query: string (required) — regex pattern
-  - filePattern: string (optional) — glob filter, e.g. "*.cs" (default: "*.cs")
-  - maxResults: int (optional) — limit results (default: 20)
+  - query: string (required)  -  regex pattern
+  - filePattern: string (optional)  -  glob filter, e.g. "*.cs" (default: "*.cs")
+  - maxResults: int (optional)  -  limit results (default: 20)
 Returns:
   - List of { file, line, lineNumber, context }
 ```
@@ -163,14 +163,14 @@ context, not full files.
 ```
 Name: lookup_type
 Parameters:
-  - type: string (required) — type name, e.g. "ActorBase"
-  - fullSource: bool (optional) — return full file (default: false, returns signature area)
+  - type: string (required)  -  type name, e.g. "ActorBase"
+  - fullSource: bool (optional)  -  return full file (default: false, returns signature area)
 Returns:
   - { file, namespace, declaration, source }
 ```
 
 Finds a type by scanning `.cs` files for `class/interface/record/struct/enum {TypeName}`.
-Regex-based, not Roslyn — good enough for type lookup by name. Searches all cached repos.
+Regex-based, not Roslyn  -  good enough for type lookup by name. Searches all cached repos.
 When multiple matches exist (e.g. partial classes), returns all.
 
 ## Risks / Trade-offs

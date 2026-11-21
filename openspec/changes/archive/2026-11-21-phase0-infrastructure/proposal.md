@@ -3,8 +3,8 @@
 AI agents working with Akka.NET codebases constantly decompile assemblies via ILSpy to understand
 types, config, and internals. This is token-expensive (~2000-4000 tokens per lookup), slow, lossy
 (no doc-comments, no cross-references), and repetitive across conversations. An MCP server that
-provides structured, token-efficient access to Akka.NET source code — matched to configured
-versions — eliminates this overhead entirely.
+provides structured, token-efficient access to Akka.NET source code  -  matched to configured
+versions  -  eliminates this overhead entirely.
 
 ## What Changes
 
@@ -14,7 +14,7 @@ versions — eliminates this overhead entirely.
 - Tag resolution with fallback (`{version}` → `v{version}` for legacy)
 - First MCP tools: `search_source` (grep-based) and `lookup_type` (file-based)
 - Server config via environment variables: `AKKA_VERSIONS=Akka=1.5.30,Akka.Hosting=1.5.71,...`
-- No project scanning — versions are configured statically, the agent never needs to pass them
+- No project scanning  -  versions are configured statically, the agent never needs to pass them
 
 ## Capabilities
 
@@ -29,14 +29,14 @@ versions — eliminates this overhead entirely.
   (`{version}` first, `v{version}` fallback). Cache invalidation by version (immutable releases).
 - `source-provider`: Facade that orchestrates registry + fetcher + cache. Single entry point:
   "give me the source tree for package X at configured version."
-- `search-source-tool`: MCP tool — grep/regex search across all cached Akka source. Returns
+- `search-source-tool`: MCP tool  -  grep/regex search across all cached Akka source. Returns
   matching lines with file paths and line numbers. Token-efficient output.
-- `lookup-type-tool`: MCP tool — find a type by name across cached source, return its full
+- `lookup-type-tool`: MCP tool  -  find a type by name across cached source, return its full
   source file. Searches all loaded repos.
 
 ### Modified Capabilities
 
-(none — greenfield)
+(none  -  greenfield)
 
 ## Impact
 

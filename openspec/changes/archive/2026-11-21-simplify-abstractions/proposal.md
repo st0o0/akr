@@ -2,19 +2,19 @@
 
 The current codebase has 4 interfaces, 4 implementations, a facade, and a separate Core
 project for ~200 lines of actual logic. This is over-engineered for a CLI tool. The
-abstractions don't earn their keep — there's exactly one implementation of each interface,
+abstractions don't earn their keep  -  there's exactly one implementation of each interface,
 and the layering makes the code harder to follow without adding testability (the real
 tests use temp directories, not mocks).
 
 ## What Changes
 
-- **Delete Akr.Core project** — merge everything into the Akr host project
+- **Delete Akr.Core project**  -  merge everything into the Akr host project
 - **Replace 4 interfaces + facade with one `GitHubClient`** class:
   - `EnsureSourceCachedAsync(repo)` → resolve latest, download + extract if not cached, return path
   - `GetAllSourceRootsAsync()` → ensure all 5 repos cached, return paths
   - Cache path logic (inline, no class needed)
-- **Drop `AKKA_VERSIONS` entirely** — always latest, no version config
-- **Tools call `GitHubClient` directly** — no orchestration layer
+- **Drop `AKKA_VERSIONS` entirely**  -  always latest, no version config
+- **Tools call `GitHubClient` directly**  -  no orchestration layer
 - **Delete**: `ISourceProvider`, `ISourceFetcher`, `ISourceCache`, `IVersionConfig`,
   `SourceProvider`, `GitHubArchiveFetcher`, `FileSystemSourceCache`,
   `EnvironmentVersionConfig`, `Placeholder`
@@ -26,9 +26,9 @@ tests use temp directories, not mocks).
 
 ### Modified Capabilities
 
-- `version-config`: Eliminated — always latest, no config needed
+- `version-config`: Eliminated  -  always latest, no config needed
 - `source-fetcher`: Merged into `GitHubClient` methods
-- `source-provider`: Eliminated — tools call `GitHubClient` directly
+- `source-provider`: Eliminated  -  tools call `GitHubClient` directly
 
 ## Impact
 

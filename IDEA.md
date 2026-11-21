@@ -1,4 +1,4 @@
-# akr — Idea
+# akr - Idea
 
 ## Problem
 

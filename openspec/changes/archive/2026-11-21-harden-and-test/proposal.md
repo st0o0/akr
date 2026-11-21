@@ -1,6 +1,6 @@
 ## Why
 
-A test audit revealed that `GitHubClient` — the entry point for all 6 tools — has only 2 tests
+A test audit revealed that `GitHubClient`  -  the entry point for all 6 tools  -  has only 2 tests
 and a critical bug: failed downloads leave incomplete cache directories that are never retried.
 Additionally, `CacheRoot` is static mutable state causing potential test parallelism issues,
 error handling for HTTP failures is missing, and the SmokeTests duplicate unit tests 1:1.

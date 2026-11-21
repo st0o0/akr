@@ -4,7 +4,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Akr?style=flat-square)](https://www.nuget.org/packages/Akr)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
-Akka.NET source intelligence for AI agents. An [MCP](https://modelcontextprotocol.io/) server that gives agents fast, token-efficient access to Akka.NET source code directly from GitHub — no ILSpy decompilation needed.
+Akka.NET source intelligence for AI agents. An [MCP](https://modelcontextprotocol.io/) server that gives agents fast, token-efficient access to Akka.NET source code directly from GitHub - no ILSpy decompilation needed.
 
 Zero config. Resolves latest Akka.NET versions automatically. Distributed as a dotnet tool.
 
@@ -142,7 +142,7 @@ type_hierarchy(type: "ActorBase")
 
 1. On first tool call, akr fetches the latest release archive from each repo (~44 MB total)
 2. Archives are extracted atomically to `~/.akr/sources/{repo}/{version}/`
-3. All subsequent calls use the local cache — no network requests
+3. All subsequent calls use the local cache - no network requests
 4. Tools search cached source using regex and text parsing
 
 No GitHub token required. Archives for public repos are freely downloadable.

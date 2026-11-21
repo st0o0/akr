@@ -32,7 +32,7 @@ potentially by other tools for ad-hoc searches. It stays as a standalone static 
 
 ### 3. Records stay as separate files
 
-`SearchResult` and `TypeLookupResult` are return types — small files that are fine standalone.
+`SearchResult` and `TypeLookupResult` are return types  -  small files that are fine standalone.
 
 ### 4. Tool classes are partial for GeneratedRegex
 

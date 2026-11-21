@@ -1,6 +1,6 @@
 ## Why
 
-Tools/ has 14 files — 6 tool classes + 5 standalone helpers + 3 records. Each tool has its
+Tools/ has 14 files  -  6 tool classes + 5 standalone helpers + 3 records. Each tool has its
 own helper class (TypeFinder, MemberExtractor, ExtensionMethodFinder, HoconBlockExtractor,
 StageFinder), but each helper is used by exactly one tool. Following the GitHub MCP pattern
 (domain-grouped tools), related tools share a class and helpers become private methods.
@@ -37,4 +37,4 @@ StageFinder), but each helper is used by exactly one tool. Following the GitHub 
 - **Net files**: 14 → 6 in Tools/ (3 tool classes + SourceSearcher + 2 records)
 - **McpSetup**: `.WithTools<TypeTools>().WithTools<HostingTools>().WithTools<StreamTools>()`
 - **Tests**: imports change, test logic unchanged
-- **MCP interface**: zero changes — tool names and parameters stay identical
+- **MCP interface**: zero changes  -  tool names and parameters stay identical
