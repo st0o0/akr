@@ -8,13 +8,6 @@
         "slopwatch"
       ],
       "rollForward": false
-    },
-    "akr": {
-      "version": "0.1.0",
-      "commands": [
-        "akr"
-      ],
-      "rollForward": false
     }
   }
 }
