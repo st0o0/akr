@@ -6,8 +6,7 @@
   <ItemGroup Label="MCP">
     <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
-    <PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
-    <PackageVersion Include="Terp" Version="0.2.1" />
+<PackageVersion Include="Terp" Version="0.2.1" />
   </ItemGroup>
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.6" />

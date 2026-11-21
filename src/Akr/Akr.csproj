@@ -2,14 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RuntimeIdentifiers>win-x64;win-arm64;osx-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
 
     <PackAsTool>true</PackAsTool>
+    <ToolCommandName>akr</ToolCommandName>
     <PackageType>McpServer</PackageType>
-
-    <PublishAot>true</PublishAot>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
 
     <PackageId>Akr</PackageId>
     <PackageTags>AI; MCP; Akka.NET; server; stdio</PackageTags>
@@ -25,7 +21,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Akr.Tests" />
-    <InternalsVisibleTo Include="Akr.Architecture.Tests" />
   </ItemGroup>
 
   <ItemGroup>

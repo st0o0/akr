@@ -27,15 +27,6 @@ Zero config. Resolves latest Akka.NET versions automatically. Publishes as a sma
 dotnet tool install --global Akr
 ```
 
-Or download the native binary for your platform from [Releases](https://github.com/st0o0/akr/releases):
-
-| Platform | Binary |
-|----------|--------|
-| Linux x64 | `akr-linux-x64` |
-| Linux ARM64 | `akr-linux-arm64` |
-| Windows x64 | `akr-win-x64.exe` |
-| macOS ARM64 | `akr-osx-arm64` |
-
 ### Configure your MCP client
 
 ```json
@@ -108,12 +99,6 @@ cd akr
 dotnet build src/akr.slnx
 dotnet run --project src/Akr.Tests/Akr.Tests.csproj    # run tests
 dotnet run --project src/Akr/Akr.csproj                 # run server
-```
-
-Native AOT publish:
-
-```bash
-dotnet publish src/Akr/Akr.csproj -c Release -r linux-x64
 ```
 
 ## License

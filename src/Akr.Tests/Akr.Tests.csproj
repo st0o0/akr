@@ -6,8 +6,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
-    <PackageReference Include="ModelContextProtocol" />
-    <PackageReference Include="ModelContextProtocol.Core" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Verify.DiffPlex" />
     <PackageReference Include="Verify.XunitV3" />

@@ -29,9 +29,8 @@ src/
   HOCON is the fallback, not the default.
 - **Token-efficient.** Return signatures and summaries by default, full source on demand.
 - **Latest-by-default.** No config needed — server resolves latest Akka versions automatically.
-  `AKKA_VERSIONS` env var is optional for pinning specific versions.
-- **Native AOT.** The server publishes as a small native binary. No reflection, no
-  `RegexOptions.Compiled`, explicit MCP tool registration.
+- **Distributed as dotnet tool.** `dotnet tool install --global Akr`. Explicit MCP tool
+  registration (no assembly scanning).
 
 ## Build & test
 

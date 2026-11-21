@@ -25,57 +25,8 @@ jobs:
       version: ${{ needs.release-please.outputs.version }}
       locked-mode: false
 
-  native:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            rid: linux-x64
-            artifact: akr-linux-x64
-          - os: ubuntu-24.04-arm
-            rid: linux-arm64
-            artifact: akr-linux-arm64
-          - os: windows-latest
-            rid: win-x64
-            artifact: akr-win-x64.exe
-          - os: macos-latest
-            rid: osx-arm64
-            artifact: akr-osx-arm64
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: src/global.json
-
-      - name: Publish AOT
-        run: >-
-          dotnet publish src/Akr/Akr.csproj
-          -c Release
-          -r ${{ matrix.rid }}
-          -p:Version=${{ needs.release-please.outputs.version }}
-
-      - name: Rename binary
-        shell: bash
-        run: |
-          src="src/Akr/bin/Release/net10.0/${{ matrix.rid }}/publish/Akr"
-          if [[ "${{ matrix.rid }}" == win-* ]]; then
-            src="${src}.exe"
-          fi
-          cp "$src" "${{ matrix.artifact }}"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
-
   publish:
-    needs: [release-please, nuget, native]
+    needs: [release-please, nuget]
     runs-on: ubuntu-latest
     environment: nuget
     permissions:
@@ -86,30 +37,24 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: nuget-packages
+          path: packages
 
       - name: Push to NuGet
         run: |
-          dotnet nuget push "artifacts/nuget-packages/*.nupkg" \
+          dotnet nuget push "packages/*.nupkg" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.NUGET_USER }}
 
-      - name: Upload assets and publish draft
+      - name: Attach to release and publish
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
           REPO: ${{ github.repository }}
         run: |
-          for dir in artifacts/*/; do
-            [[ "$dir" == *nuget-packages* ]] && continue
-            for file in "$dir"*; do
-              echo "Uploading: $file"
-              gh release upload "$TAG" "$file" --repo "$REPO"
-            done
-          done
-          for nupkg in artifacts/nuget-packages/*.nupkg; do
+          for nupkg in packages/*.nupkg; do
             gh release upload "$TAG" "$nupkg" --repo "$REPO"
           done
           gh release edit "$TAG" --repo "$REPO" --draft=false
