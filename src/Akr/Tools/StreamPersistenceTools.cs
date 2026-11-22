@@ -141,14 +141,14 @@ public sealed partial class StreamPersistenceTools
     {
         var sb = new StringBuilder();
         var count = 0;
-        foreach (var file in EnumerateFiles(roots, "*.cs"))
+        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
             if (!file.Relative.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var content = File.ReadAllText(file.Path);
+            var content = File.ReadAllText(file.Full);
             if (!GraphDslClassPattern().IsMatch(content))
             {
                 continue;
@@ -203,9 +203,9 @@ public sealed partial class StreamPersistenceTools
     {
         var sb = new StringBuilder();
         var count = 0;
-        foreach (var file in EnumerateFiles(roots, "*.cs"))
+        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
-            var content = File.ReadAllText(file.Path);
+            var content = File.ReadAllText(file.Full);
             var attrs = ClassPattern().Matches(content)
                 .Where(m => HasBase(m.Groups["bases"].Value, _attributeBases))
                 .Select(m => m.Groups["name"].Value)
@@ -236,9 +236,9 @@ public sealed partial class StreamPersistenceTools
     public static IReadOnlyList<ClassInfo> FindClasses(IReadOnlyList<string> roots, string[] baseNames)
     {
         var list = new List<ClassInfo>();
-        foreach (var file in EnumerateFiles(roots, "*.cs"))
+        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
-            foreach (Match m in ClassPattern().Matches(File.ReadAllText(file.Path)))
+            foreach (Match m in ClassPattern().Matches(File.ReadAllText(file.Full)))
             {
                 var bases = m.Groups["bases"].Value.Trim();
                 if (HasBase(bases, baseNames))
@@ -255,9 +255,9 @@ public sealed partial class StreamPersistenceTools
     public static IReadOnlyList<PluginInfo> FindPlugins(IReadOnlyList<string> roots, string[] baseNames, string kind)
     {
         var sections = new List<(string Name, string Class)>();
-        foreach (var file in EnumerateFiles(roots, "*.conf"))
+        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.conf"))
         {
-            var text = File.ReadAllText(file.Path);
+            var text = File.ReadAllText(file.Full);
             var matches = ConfigSectionPattern().Matches(text);
             for (var i = 0; i < matches.Count; i++)
             {
@@ -342,9 +342,9 @@ public sealed partial class StreamPersistenceTools
             sb.AppendLine();
         }
 
-        foreach (var file in EnumerateFiles(roots, "*.conf"))
+        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.conf"))
         {
-            foreach (Match m in AdapterConfigPattern().Matches(File.ReadAllText(file.Path)))
+            foreach (Match m in AdapterConfigPattern().Matches(File.ReadAllText(file.Full)))
             {
                 sb.AppendLine($"--- {file.Relative} ---");
                 sb.AppendLine(m.Value);
@@ -382,19 +382,4 @@ public sealed partial class StreamPersistenceTools
         return name[(name.LastIndexOf('.') + 1)..];
     }
 
-    private static IEnumerable<(string Path, string Relative)> EnumerateFiles(IReadOnlyList<string> roots, string pattern)
-    {
-        foreach (var root in roots)
-        {
-            if (!Directory.Exists(root))
-            {
-                continue;
-            }
-
-            foreach (var file in Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories))
-            {
-                yield return (file, Path.GetRelativePath(root, file).Replace('\\', '/'));
-            }
-        }
-    }
 }

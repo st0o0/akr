@@ -305,6 +305,41 @@ public sealed class GitHubClientCachingTests : IDisposable
         Assert.Contains("/v1.5.75.tar.gz", archiveRequests[0]);
     }
 
+    [Fact]
+    public async Task EnsureAllSourcesAsync_returns_cached_result_on_second_call()
+    {
+        WriteTestMetadata(new RepoMetadata
+        {
+            Version = "1.5.75",
+            Etag = "\"etag-1\"",
+            LastChecked = _time.GetUtcNow().AddMinutes(-5),
+            TagFormat = "plain"
+        });
+
+        var tarball = CreateTestTarGz("akka.net-1.5.75/", [
+            ("akka.net-1.5.75/README.md", "# Akka"),
+        ]);
+
+        var handler = new CachingFakeHandler(req =>
+        {
+            if (req.RequestUri!.AbsoluteUri.Contains(".tar.gz"))
+            {
+                return (HttpStatusCode.OK, tarball, null);
+            }
+
+            return (HttpStatusCode.OK, JsonBody(new { tag_name = "1.5.75" }), null);
+        });
+        var client = CreateClient(handler);
+
+        var first = await client.EnsureAllSourcesAsync(TestContext.Current.CancellationToken);
+        var callsAfterFirst = handler.CallCount;
+
+        var second = await client.EnsureAllSourcesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Same(first, second);
+        Assert.Equal(callsAfterFirst, handler.CallCount);
+    }
+
     private GitHubClient CreateClient(HttpMessageHandler handler) =>
         new(new HttpClient(handler), NullLogger<GitHubClient>.Instance, _cacheRoot,
             cacheTtl: TimeSpan.FromHours(24), timeProvider: _time);

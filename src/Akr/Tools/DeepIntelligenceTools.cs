@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -28,6 +29,8 @@ public sealed partial class DeepIntelligenceTools
 {
     private const string NoSource = "No Akka.NET source available.";
     private const int MaxWindowLines = 25;
+
+    private static readonly ConcurrentDictionary<string, List<TypeDecl>> _scanCache = new(StringComparer.Ordinal);
 
     private static readonly string[] _lifecycle = ["PreStart", "PreRestart", "PostRestart", "PostStop", "AroundReceive", "Receive"];
     private static readonly string[] _requestSuffixes = ["Command", "Query"];
@@ -450,9 +453,10 @@ public sealed partial class DeepIntelligenceTools
     public static IReadOnlyList<SupervisionInfo> FindSupervision(IReadOnlyList<string> roots)
     {
         var results = new List<SupervisionInfo>();
-        foreach (var source in ReadSources(roots))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
-            var lines = source.Content.Split('\n');
+            var content = File.ReadAllText(full);
+            var lines = content.Split('\n');
             var current = "";
             for (var i = 0; i < lines.Length; i++)
             {
@@ -481,7 +485,7 @@ public sealed partial class DeepIntelligenceTools
                 var text = string.Join('\n', lines[i..(end + 1)]);
                 var strategy = StrategyCtor().Match(text) is { Success: true } sm ? sm.Groups[1].Value : "(unspecified)";
                 var directives = DirectivePattern().Matches(text).Select(m => m.Groups[1].Value).Distinct().ToList();
-                results.Add(new SupervisionInfo(current, kind, strategy, directives, source.Path, i + 1));
+                results.Add(new SupervisionInfo(current, kind, strategy, directives, relative, i + 1));
                 i = end;
             }
         }
@@ -555,36 +559,27 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- shared scanning helpers ----
 
-    private static IEnumerable<SourceFile> ReadSources(IReadOnlyList<string> roots)
-    {
-        foreach (var root in roots)
-        {
-            if (!Directory.Exists(root))
-            {
-                continue;
-            }
-
-            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
-            {
-                yield return new SourceFile(
-                    Path.GetRelativePath(root, file).Replace('\\', '/'),
-                    File.ReadAllText(file));
-            }
-        }
-    }
-
     private static List<TypeDecl> ScanTypes(IReadOnlyList<string> roots)
     {
-        var list = new List<TypeDecl>();
-        foreach (var source in ReadSources(roots))
+        var key = string.Join('\n', roots.OrderBy(r => r, StringComparer.Ordinal));
+        if (_scanCache.TryGetValue(key, out var cached))
         {
-            var ns = NamespacePattern().Match(source.Content) is { Success: true } m ? m.Groups[1].Value : "";
-            foreach (Match d in DeclPattern().Matches(source.Content))
+            return cached;
+        }
+
+        var list = new List<TypeDecl>();
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        {
+            var content = File.ReadAllText(full);
+            var source = new SourceFile(relative, content);
+            var ns = NamespacePattern().Match(content) is { Success: true } m ? m.Groups[1].Value : "";
+            foreach (Match d in DeclPattern().Matches(content))
             {
                 list.Add(new TypeDecl(d.Groups[2].Value, d.Groups[1].Value, ns, ParseBases(d.Groups[3].Value), source, d.Index));
             }
         }
 
+        _scanCache.TryAdd(key, list);
         return list;
     }
 

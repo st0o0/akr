@@ -47,11 +47,13 @@ public static class RepoRegistry
         ["Akka.Persistence.MongoDb.Hosting"] = new("akkadotnet/Akka.Persistence.MongoDB", "src/Akka.Persistence.MongoDb.Hosting"),
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly IReadOnlyCollection<string> _allRepos =
+        _packages.Values.Select(e => e.Repo).Distinct(StringComparer.Ordinal).ToArray();
+
     public static PackageEntry? GetEntry(string packageName) =>
         _packages.GetValueOrDefault(packageName);
 
-    public static IReadOnlyCollection<string> GetAllRepos() =>
-        _packages.Values.Select(e => e.Repo).Distinct(StringComparer.Ordinal).ToArray();
+    public static IReadOnlyCollection<string> GetAllRepos() => _allRepos;
 
     public static IReadOnlyCollection<string> GetAllPackageNames() =>
         _packages.Keys;

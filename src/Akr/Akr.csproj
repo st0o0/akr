@@ -18,8 +18,6 @@
     <Description>Akka.NET source intelligence for AI agents. 33 MCP tools for type lookup, member signatures, config reference, stream stages, hosting extensions, and more. Zero config - resolves latest Akka.NET source automatically.</Description>
     <PackageTags>mcp;mcp-server;akka-net;akka;dotnet;ai;source-intelligence;code-search;type-lookup</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
-    <DebugType>embedded</DebugType>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>
 
   <ItemGroup>

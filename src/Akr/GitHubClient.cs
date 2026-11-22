@@ -20,6 +20,7 @@ public sealed class GitHubClient
     private readonly TimeSpan _cacheTtl;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
+    private IReadOnlyList<string>? _cachedRoots;
 
     public GitHubClient(
         HttpClient httpClient,
@@ -112,6 +113,11 @@ public sealed class GitHubClient
 
     public async Task<IReadOnlyList<string>> EnsureAllSourcesAsync(CancellationToken cancellationToken = default)
     {
+        if (_cachedRoots is not null)
+        {
+            return _cachedRoots;
+        }
+
         var roots = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -123,6 +129,7 @@ public sealed class GitHubClient
             }
         }
 
+        _cachedRoots = roots;
         return roots;
     }
 

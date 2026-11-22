@@ -8,7 +8,7 @@ namespace Akr.Tools;
 public sealed record ExtensionFileResult(string File, IReadOnlyList<string> Signatures);
 
 [McpServerToolType]
-public sealed class HostingTools
+public sealed partial class HostingTools
 {
     [McpServerTool(Name = "hosting_extensions"), Description("Search for With*/Add* extension methods in Akka.Hosting source.")]
     public static async Task<string> SearchExtensionsAsync(
@@ -95,9 +95,8 @@ public sealed class HostingTools
         return sb.ToString();
     }
 
-    private static readonly Regex _methodPattern = new(
-        @"public\s+static\s+\S+\s+(With|Add)\w+\s*[\(<]",
-        RegexOptions.NonBacktracking);
+    [GeneratedRegex(@"public\s+static\s+\S+\s+(With|Add)\w+\s*[\(<]", RegexOptions.NonBacktracking)]
+    private static partial Regex MethodPattern();
 
     public static IReadOnlyList<ExtensionFileResult> FindExtensions(IEnumerable<string> roots, string? filter = null)
     {
@@ -135,7 +134,7 @@ public sealed class HostingTools
 
         for (var i = 0; i < lines.Length; i++)
         {
-            if (!_methodPattern.IsMatch(lines[i]))
+            if (!MethodPattern().IsMatch(lines[i]))
             {
                 continue;
             }
@@ -249,7 +248,7 @@ public sealed class HostingTools
         for (var i = keyLine; i < lines.Count; i++)
         {
             collected.Add(lines[i]);
-            foreach (var c in StripComment(lines[i]))
+            foreach (var c in HoconHelper.StripComment(lines[i]))
             {
                 if (c == '{')
                 {
@@ -271,22 +270,4 @@ public sealed class HostingTools
         return string.Join('\n', collected);
     }
 
-    private static string StripComment(string line)
-    {
-        var inString = false;
-        for (var i = 0; i < line.Length; i++)
-        {
-            var c = line[i];
-            if (c == '"')
-            {
-                inString = !inString;
-            }
-            else if (!inString && (c == '#' || (c == '/' && i + 1 < line.Length && line[i + 1] == '/')))
-            {
-                return line[..i];
-            }
-        }
-
-        return line;
-    }
 }

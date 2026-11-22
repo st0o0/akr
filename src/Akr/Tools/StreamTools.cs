@@ -8,7 +8,7 @@ namespace Akr.Tools;
 public sealed record StageInfo(string Name, string Category);
 
 [McpServerToolType]
-public sealed class StreamTools
+public sealed partial class StreamTools
 {
     [McpServerTool(Name = "search_source"), Description("Search across cached Akka.NET source code using regex patterns.")]
     public static async Task<string> SearchAsync(
@@ -75,9 +75,8 @@ public sealed class StreamTools
 
     public static readonly IReadOnlyList<string> Categories = ["Source", "Flow", "Sink", "Fan-In", "Fan-Out", "Custom"];
 
-    private static readonly Regex _classPattern = new(
-        @"\bclass\s+(?<name>\w+)\s*(?<generics><[^>\r\n]*>)?\s*:\s*(?<bases>[^\r\n{]+)",
-        RegexOptions.NonBacktracking);
+    [GeneratedRegex(@"\bclass\s+(?<name>\w+)\s*(?<generics><[^>\r\n]*>)?\s*:\s*(?<bases>[^\r\n{]+)", RegexOptions.NonBacktracking)]
+    private static partial Regex ClassPattern();
 
     private static readonly string[] _stageBases =
     [
@@ -130,7 +129,7 @@ public sealed class StreamTools
 
     public static IEnumerable<StageInfo> ExtractStages(string source)
     {
-        foreach (Match m in _classPattern.Matches(source))
+        foreach (Match m in ClassPattern().Matches(source))
         {
             var bases = m.Groups["bases"].Value;
             if (!_stageBases.Any(b => bases.Contains(b, StringComparison.Ordinal)))

@@ -13,29 +13,24 @@ public sealed record ConfigDiffResult(
     IReadOnlyList<string> Changed);
 
 [McpServerToolType]
-public sealed class ConfigMigrationTools
+public sealed partial class ConfigMigrationTools
 {
     private const int MaxSectionLines = 40;
 
-    private static readonly Regex _methodPattern = new(
-        @"public\s+static\s+\S+\s+(?<name>(With|Add)\w+)\s*[\(<]",
-        RegexOptions.NonBacktracking);
+    [GeneratedRegex(@"public\s+static\s+\S+\s+(?<name>(With|Add)\w+)\s*[\(<]", RegexOptions.NonBacktracking)]
+    private static partial Regex MethodPattern();
 
-    private static readonly Regex _hoconKeyPattern = new(
-        @"\bakka(?:\.[A-Za-z0-9_\-]+)+",
-        RegexOptions.NonBacktracking);
+    [GeneratedRegex(@"\bakka(?:\.[A-Za-z0-9_\-]+)+", RegexOptions.NonBacktracking)]
+    private static partial Regex HoconKeyPattern();
 
-    private static readonly Regex _entryPattern = new(
-        @"^(?<key>[A-Za-z0-9_\.\-""]+)\s*(?<op>[={:])\s*(?<rest>.*)$",
-        RegexOptions.NonBacktracking);
+    [GeneratedRegex(@"^(?<key>[A-Za-z0-9_\.\-""]+)\s*(?<op>[={:])\s*(?<rest>.*)$", RegexOptions.NonBacktracking)]
+    private static partial Regex EntryPattern();
 
-    private static readonly Regex _orderingPattern = new(
-        @"(must|should|needs? to|has to)\s+be\s+(called|registered|configured|invoked|set)|(before|after)\s+(calling|registering|configuring)|call(ed)?\s+(this\s+)?(before|after)|requires?\s+(that\s+)?\w*(With|Add)\w+|order\s+(matters|of)",
-        RegexOptions.NonBacktracking | RegexOptions.IgnoreCase);
+    [GeneratedRegex(@"(must|should|needs? to|has to)\s+be\s+(called|registered|configured|invoked|set)|(before|after)\s+(calling|registering|configuring)|call(ed)?\s+(this\s+)?(before|after)|requires?\s+(that\s+)?\w*(With|Add)\w+|order\s+(matters|of)", RegexOptions.NonBacktracking | RegexOptions.IgnoreCase)]
+    private static partial Regex OrderingPattern();
 
-    private static readonly Regex _diHintPattern = new(
-        @"GetRequiredService<|GetService<|ActorRegistry|registry\.(Try)?Get<|DependencyResolver",
-        RegexOptions.NonBacktracking);
+    [GeneratedRegex(@"GetRequiredService<|GetService<|ActorRegistry|registry\.(Try)?Get<|DependencyResolver", RegexOptions.NonBacktracking)]
+    private static partial Regex DiHintPattern();
 
     private static readonly Dictionary<string, string[]> _fallbackHostingMap = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -129,7 +124,7 @@ public sealed class ConfigMigrationTools
 
         foreach (var raw in lines)
         {
-            var line = StripComment(raw).Trim();
+            var line = HoconHelper.StripComment(raw).Trim();
             if (line.Length == 0)
             {
                 continue;
@@ -156,7 +151,7 @@ public sealed class ConfigMigrationTools
                 continue;
             }
 
-            var m = _entryPattern.Match(line);
+            var m = EntryPattern().Match(line);
             if (!m.Success)
             {
                 continue;
@@ -218,7 +213,7 @@ public sealed class ConfigMigrationTools
                 string? current = null;
                 foreach (var line in File.ReadLines(file))
                 {
-                    var m = _methodPattern.Match(line);
+                    var m = MethodPattern().Match(line);
                     if (m.Success)
                     {
                         current = m.Groups["name"].Value;
@@ -229,7 +224,7 @@ public sealed class ConfigMigrationTools
                         continue;
                     }
 
-                    foreach (Match k in _hoconKeyPattern.Matches(line))
+                    foreach (Match k in HoconKeyPattern().Matches(line))
                     {
                         if (!map.TryGetValue(current, out var set))
                         {
@@ -437,11 +432,11 @@ public sealed class ConfigMigrationTools
                 {
                     var t = lines[i].Trim();
                     var isComment = t.StartsWith("//", StringComparison.Ordinal) || t.StartsWith('*');
-                    if (isComment && _orderingPattern.IsMatch(t))
+                    if (isComment && OrderingPattern().IsMatch(t))
                     {
                         constraints.Add($"{relative}:{i + 1}: {t.TrimStart('/', '*', ' ')}");
                     }
-                    else if (isHosting && !isComment && hints.Count < 50 && _diHintPattern.IsMatch(t))
+                    else if (isHosting && !isComment && hints.Count < 50 && DiHintPattern().IsMatch(t))
                     {
                         hints.Add($"{relative}:{i + 1}: {t}");
                     }
@@ -551,22 +546,4 @@ public sealed class ConfigMigrationTools
         return sections;
     }
 
-    private static string StripComment(string line)
-    {
-        var inString = false;
-        for (var i = 0; i < line.Length; i++)
-        {
-            var c = line[i];
-            if (c == '"')
-            {
-                inString = !inString;
-            }
-            else if (!inString && (c == '#' || (c == '/' && i + 1 < line.Length && line[i + 1] == '/')))
-            {
-                return line[..i];
-            }
-        }
-
-        return line;
-    }
 }

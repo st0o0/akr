@@ -144,7 +144,7 @@ public sealed partial class EcosystemTools
         var sb = new StringBuilder();
         var classNames = new List<string>();
 
-        foreach (var (full, relative) in EnumerateFiles(rootList, "*.cs"))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(rootList, "*.cs"))
         {
             var lines = File.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
@@ -169,7 +169,7 @@ public sealed partial class EcosystemTools
             return $"No serializer class found matching: {name}";
         }
 
-        foreach (var (full, relative) in EnumerateFiles(rootList, "reference.conf"))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(rootList, "reference.conf"))
         {
             var hits = File.ReadAllLines(full)
                 .Where(l => classNames.Any(c => l.Contains(c, StringComparison.Ordinal)))
@@ -216,7 +216,7 @@ public sealed partial class EcosystemTools
         var sb = new StringBuilder();
         var count = 0;
 
-        foreach (var (full, relative) in EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
             if (!relative.Contains(pathFilter, StringComparison.OrdinalIgnoreCase))
             {
@@ -257,7 +257,7 @@ public sealed partial class EcosystemTools
     {
         var buckets = _diCategories.Select(_ => new List<string>()).ToArray();
 
-        foreach (var (full, relative) in EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
             if (!relative.Contains("Hosting", StringComparison.OrdinalIgnoreCase)
                 || relative.Contains("TestKit", StringComparison.OrdinalIgnoreCase)
@@ -320,7 +320,7 @@ public sealed partial class EcosystemTools
     {
         var rows = new List<(string Package, string Class, string Base, string Assertions)>();
 
-        foreach (var (full, relative) in EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
             var package = ClassifyTestKit(relative);
             if (package is null)
@@ -394,7 +394,7 @@ public sealed partial class EcosystemTools
     {
         var groups = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
 
-        foreach (var (full, relative) in EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
         {
             if (ClassifyTestKit(relative) is null)
             {
@@ -482,7 +482,7 @@ public sealed partial class EcosystemTools
     {
         var events = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var (full, _) in EnumerateFiles(roots, "ClusterEvent.cs"))
+        foreach (var (full, _) in FileEnumerator.EnumerateFiles(roots, "ClusterEvent.cs"))
         {
             var lines = File.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
@@ -550,7 +550,7 @@ public sealed partial class EcosystemTools
 
     public static string FindExtensionPoints(IEnumerable<string> roots)
     {
-        var files = EnumerateFiles(roots, "*.cs")
+        var files = FileEnumerator.EnumerateFiles(roots, "*.cs")
             .Where(f => !f.Relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
             .Select(f => (f.Relative, Lines: File.ReadAllLines(f.Full)))
             .ToList();
@@ -628,7 +628,7 @@ public sealed partial class EcosystemTools
     {
         var graph = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
 
-        foreach (var (full, _) in EnumerateFiles(roots, "*.csproj"))
+        foreach (var (full, _) in FileEnumerator.EnumerateFiles(roots, "*.csproj"))
         {
             var project = Path.GetFileNameWithoutExtension(full);
             if (!project.StartsWith("Akka", StringComparison.Ordinal))
@@ -680,28 +680,6 @@ public sealed partial class EcosystemTools
     }
 
     // ---------- helpers ----------
-
-    private static IEnumerable<(string Full, string Relative)> EnumerateFiles(IEnumerable<string> roots, string pattern)
-    {
-        foreach (var root in roots)
-        {
-            if (!Directory.Exists(root))
-            {
-                continue;
-            }
-
-            var files = Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories)
-                .Select(f => (Full: f, Relative: Path.GetRelativePath(root, f).Replace('\\', '/')))
-                .Where(f => !f.Relative.Contains("/obj/", StringComparison.Ordinal)
-                    && !f.Relative.Contains("/bin/", StringComparison.Ordinal))
-                .OrderBy(f => f.Relative, StringComparer.Ordinal);
-
-            foreach (var f in files)
-            {
-                yield return f;
-            }
-        }
-    }
 
     private static List<string> CollectBlockLines(string[] lines, int start, int maxLines = int.MaxValue)
     {

@@ -10,6 +10,8 @@ The system SHALL maintain a static mapping from NuGet package names to GitHub re
 identifiers and source paths within those repositories. The mapping SHALL cover the Akka.NET
 ecosystem repositories listed in the project's IDEA.md.
 
+`GetAllRepos()` SHALL return a pre-computed static collection instead of computing the distinct repo list on each call.
+
 #### Scenario: Core mono-repo packages
 
 - **WHEN** looking up package `Akka`
@@ -44,6 +46,11 @@ ecosystem repositories listed in the project's IDEA.md.
 
 - **WHEN** looking up a package name not in the registry
 - **THEN** the registry SHALL return no result (not throw)
+
+#### Scenario: GetAllRepos returns pre-computed result
+
+- **WHEN** `GetAllRepos()` is called multiple times
+- **THEN** it SHALL return the same static collection instance each time without recomputing
 
 ### Requirement: Provide tag pattern per repository
 

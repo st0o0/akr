@@ -227,6 +227,15 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
         Assert.Contains("No default supervision", DeepIntelligenceTools.Supervision([Path.Combine(_testRoot, "Users")], null));
     }
 
+    [Fact]
+    public void ScanTypes_returns_same_cached_instance_on_second_call()
+    {
+        var first = DeepIntelligenceTools.Hierarchy(_roots, "ActorBase");
+        var second = DeepIntelligenceTools.Hierarchy(_roots, "ActorBase");
+
+        Assert.Equal(first, second);
+    }
+
     private void WriteFile(string relativePath, string content)
     {
         var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
