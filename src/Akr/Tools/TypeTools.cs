@@ -76,7 +76,89 @@ public sealed partial class TypeTools
         sb.AppendLine(FormatHeader(results[0].Declaration, type));
         sb.AppendLine();
         sb.Append(members.Count == 0 ? "No members found." : Format(members));
+
+        var parentNames = ExtractParentTypes(results[0].Declaration);
+        foreach (var parent in parentNames)
+        {
+            var parentResults = FindType(roots, parent, fullSource: true);
+            if (parentResults.Count == 0)
+            {
+                continue;
+            }
+
+            var parentMembers = parentResults
+                .SelectMany(r => Extract(r.Source, parent))
+                .ToList();
+
+            if (parentMembers.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine();
+                sb.AppendLine($"Inherited from {parent}:");
+                sb.Append(Format(parentMembers));
+            }
+        }
+
         return sb.ToString();
+    }
+
+    private static readonly HashSet<string> _systemInterfaces = new(StringComparer.Ordinal)
+    {
+        "IEquatable", "IComparable", "ISurrogated", "IDisposable", "IAsyncDisposable",
+        "ICloneable", "IFormattable", "IConvertible", "ISerializable",
+    };
+
+    internal static IReadOnlyList<string> ExtractParentTypes(string declaration)
+    {
+        var colon = declaration.IndexOf(':');
+        if (colon < 0)
+        {
+            return [];
+        }
+
+        var rest = declaration[(colon + 1)..];
+        var whereIdx = rest.IndexOf(" where ", StringComparison.Ordinal);
+        if (whereIdx >= 0)
+        {
+            rest = rest[..whereIdx];
+        }
+
+        rest = rest.TrimEnd('{').Trim();
+
+        var parents = new List<string>();
+        var depth = 0;
+        var start = 0;
+        for (var i = 0; i < rest.Length; i++)
+        {
+            var c = rest[i];
+            if (c == '<')
+            {
+                depth++;
+            }
+            else if (c == '>')
+            {
+                depth--;
+            }
+            else if (c == ',' && depth == 0)
+            {
+                AddIfValid(parents, rest[start..i].Trim());
+                start = i + 1;
+            }
+        }
+
+        AddIfValid(parents, rest[start..].Trim());
+        return parents;
+
+        static void AddIfValid(List<string> list, string name)
+        {
+            var genericIdx = name.IndexOf('<');
+            var baseName = genericIdx >= 0 ? name[..genericIdx] : name;
+            baseName = baseName.Trim();
+            if (baseName.Length > 0 && !_systemInterfaces.Contains(baseName))
+            {
+                list.Add(baseName);
+            }
+        }
     }
 
     [GeneratedRegex(@"^\s*namespace\s+([\w.]+)", RegexOptions.Multiline)]

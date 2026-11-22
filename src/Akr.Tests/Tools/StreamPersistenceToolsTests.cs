@@ -135,6 +135,23 @@ public sealed class StreamPersistenceToolsTests : IDisposable
     }
 
     [Fact]
+    public void Attributes_MatchesInstanceDefaults()
+    {
+        WriteFile("Akka.Streams/AsyncBoundary.cs", """
+            namespace Akka.Streams;
+            public sealed class AsyncBoundary : Attributes.IAttribute
+            {
+                public static readonly AsyncBoundary Instance = new();
+            }
+            """);
+
+        var result = StreamPersistenceTools.FormatAttributes(Roots);
+
+        Assert.Contains("AsyncBoundary", result);
+        Assert.Contains("Instance", result);
+    }
+
+    [Fact]
     public void Attributes_NoMatches_ReportsNone() =>
         Assert.Contains("No stream attributes", StreamPersistenceTools.FormatAttributes(EmptyRoots));
 

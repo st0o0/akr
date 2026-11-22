@@ -139,4 +139,32 @@ public sealed class MemberExtractorTests
         Assert.Equal("Props : ISurrogated", TypeTools.FormatHeader("public sealed class Props : ISurrogated", "Props"));
         Assert.Equal("Props", TypeTools.FormatHeader("public sealed class Props", "Props"));
     }
+
+    [Fact]
+    public void ExtractParentTypes_ParsesInterfaceList()
+    {
+        var parents = TypeTools.ExtractParentTypes("public interface IActorRef : ICanTell, IEquatable<IActorRef>, IComparable<IActorRef>, ISurrogated, IComparable");
+
+        Assert.Contains("ICanTell", parents);
+        Assert.DoesNotContain("IEquatable", parents);
+        Assert.DoesNotContain("IComparable", parents);
+        Assert.DoesNotContain("ISurrogated", parents);
+    }
+
+    [Fact]
+    public void ExtractParentTypes_NoColon_ReturnsEmpty()
+    {
+        var parents = TypeTools.ExtractParentTypes("public class Simple");
+
+        Assert.Empty(parents);
+    }
+
+    [Fact]
+    public void ExtractParentTypes_HandlesGenericBases()
+    {
+        var parents = TypeTools.ExtractParentTypes("public class MyActor : ActorBase, IWithTimers");
+
+        Assert.Contains("ActorBase", parents);
+        Assert.Contains("IWithTimers", parents);
+    }
 }

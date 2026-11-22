@@ -83,7 +83,7 @@ public sealed partial class EcosystemTools
     public static string FindSerializerBindings(IEnumerable<string> roots, string? filter = null)
     {
         var rows = new List<(string File, string Type, string Serializer)>();
-        foreach (var (full, relative) in EnumerateFiles(roots, "reference.conf"))
+        foreach (var (full, relative) in ConfigFiles.EnumerateConfigFiles(roots))
         {
             var lines = File.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)

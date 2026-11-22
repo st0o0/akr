@@ -108,9 +108,100 @@ public sealed class ConfigReferenceToolTests : IDisposable
         Assert.Equal("No reference.conf files found.", HostingTools.FindConfig([empty], null));
     }
 
-    private void WriteFile(string relativePath, string content)
+    [Fact]
+    public void Finds_core_akka_conf_by_path()
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(root);
+        try
+        {
+            WriteFile(root, "src/core/Akka/Configuration/akka.conf",
+                """
+                akka {
+                  actor {
+                    provider = "Akka.Actor.LocalActorRefProvider"
+                  }
+                }
+                """);
+
+            var output = HostingTools.FindConfig([root], "akka.actor.provider");
+            Assert.Contains("provider", output);
+            Assert.DoesNotContain("No config found", output);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Finds_config_in_real_akr_cache_layout()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(root);
+        try
+        {
+            // Mirror the actual layout: core configs are NOT reference.conf
+            WriteFile(root, "src/core/Akka/Configuration/akka.conf",
+                """
+                akka {
+                  actor {
+                    provider = "Akka.Actor.LocalActorRefProvider"
+                  }
+                }
+                """);
+            WriteFile(root, "src/core/Akka.Cluster/Configuration/Cluster.conf",
+                """
+                akka {
+                  cluster {
+                    roles = []
+                  }
+                }
+                """);
+            WriteFile(root, "src/core/Akka.Persistence/persistence.conf",
+                """
+                akka {
+                  persistence {
+                    journal {
+                      plugin = ""
+                    }
+                  }
+                }
+                """);
+            // Satellite repos DO use reference.conf
+            WriteFile(root, "src/Akka.Persistence.Sql/reference.conf",
+                """
+                akka.persistence.journal.sql {
+                  class = "Akka.Persistence.Sql.Journal.SqlWriteJournal, Akka.Persistence.Sql"
+                }
+                """);
+
+            // Enumerate should find all 4
+            var files = ConfigFiles.EnumerateConfigFiles([root]).Select(f => f.Relative).ToList();
+            Assert.Equal(4, files.Count);
+
+            // config_reference should find akka.actor.provider
+            var actorConfig = HostingTools.FindConfig([root], "akka.actor.provider");
+            Assert.Contains("provider", actorConfig);
+            Assert.DoesNotContain("No config found", actorConfig);
+
+            // config_reference should find akka.cluster
+            var clusterConfig = HostingTools.FindConfig([root], "akka.cluster");
+            Assert.Contains("cluster", clusterConfig);
+            Assert.DoesNotContain("No config found", clusterConfig);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private void WriteFile(string relativePath, string content) =>
+        WriteFile(_testRoot, relativePath, content);
+
+    private static void WriteFile(string root, string relativePath, string content)
+    {
+        var fullPath = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         File.WriteAllText(fullPath, content);
     }

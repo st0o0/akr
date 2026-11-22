@@ -37,6 +37,19 @@ public sealed class ConfigMigrationTools
         @"GetRequiredService<|GetService<|ActorRegistry|registry\.(Try)?Get<|DependencyResolver",
         RegexOptions.NonBacktracking);
 
+    private static readonly Dictionary<string, string[]> _fallbackHostingMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["WithClustering"] = ["akka.cluster"],
+        ["WithRemoting"] = ["akka.remote"],
+        ["WithDistributedData"] = ["akka.cluster.distributed-data"],
+        ["WithSingleton"] = ["akka.cluster.singleton"],
+        ["WithShardRegion"] = ["akka.cluster.sharding"],
+        ["WithDistributedPubSub"] = ["akka.cluster.pub-sub"],
+        ["WithJournal"] = ["akka.persistence.journal"],
+        ["WithSnapshotStore"] = ["akka.persistence.snapshot-store"],
+        ["WithCoordinatedShutdown"] = ["akka.coordinated-shutdown"],
+    };
+
     private static readonly string[] _recommendedOrder =
     [
         "1. Remote / transport (WithRemoting)",
@@ -182,14 +195,11 @@ public sealed class ConfigMigrationTools
     public static Dictionary<string, string?> CollectConfig(IEnumerable<string> roots)
     {
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-        foreach (var root in roots.Where(Directory.Exists))
+        foreach (var (full, _) in ConfigFiles.EnumerateConfigFiles(roots))
         {
-            foreach (var file in Directory.EnumerateFiles(root, "reference.conf", SearchOption.AllDirectories))
+            foreach (var entry in ParseConfig(File.ReadAllLines(full)))
             {
-                foreach (var entry in ParseConfig(File.ReadAllLines(file)))
-                {
-                    result[entry.Path] = entry.Value;
-                }
+                result[entry.Path] = entry.Value;
             }
         }
 
@@ -239,7 +249,8 @@ public sealed class ConfigMigrationTools
     public static string MapQuery(IEnumerable<string> roots, string query)
     {
         var rootList = roots.ToList();
-        var map = CollectHostingKeys(rootList);
+        var scannedMap = CollectHostingKeys(rootList);
+        var merged = MergeWithFallback(scannedMap);
         var q = query.Trim();
         var sb = new StringBuilder();
 
@@ -249,7 +260,7 @@ public sealed class ConfigMigrationTools
             sb.AppendLine("| HOCON path | Hosting method |");
             sb.AppendLine("|---|---|");
             var rows = 0;
-            foreach (var (method, keys) in map.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            foreach (var (method, keys) in merged.OrderBy(kv => kv.Key, StringComparer.Ordinal))
             {
                 foreach (var key in keys.Where(k => PathMatches(k, q)))
                 {
@@ -265,16 +276,41 @@ public sealed class ConfigMigrationTools
         sb.AppendLine("| Hosting method | HOCON keys |");
         sb.AppendLine("|---|---|");
         var found = 0;
-        foreach (var (method, keys) in map.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        foreach (var (method, keys) in merged.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
-            if (method.Contains(q, StringComparison.OrdinalIgnoreCase))
+            if (!method.Contains(q, StringComparison.OrdinalIgnoreCase))
             {
-                sb.AppendLine($"| {method} | {string.Join(", ", keys)} |");
-                found++;
+                continue;
             }
+
+            var curatedOnly = !scannedMap.ContainsKey(method);
+            var label = curatedOnly ? " (curated)" : "";
+            sb.AppendLine($"| {method} | {string.Join(", ", keys)}{label} |");
+            found++;
         }
 
         return found == 0 ? $"No HOCON keys found for Hosting method: {q}" : sb.ToString();
+    }
+
+    private static Dictionary<string, SortedSet<string>> MergeWithFallback(
+        Dictionary<string, SortedSet<string>> scanned)
+    {
+        var merged = new Dictionary<string, SortedSet<string>>(scanned, StringComparer.Ordinal);
+        foreach (var (method, keys) in _fallbackHostingMap)
+        {
+            if (!merged.TryGetValue(method, out var set))
+            {
+                set = new SortedSet<string>(StringComparer.Ordinal);
+                merged[method] = set;
+            }
+
+            foreach (var key in keys)
+            {
+                set.Add(key);
+            }
+        }
+
+        return merged;
     }
 
     private static bool PathMatches(string key, string query) =>

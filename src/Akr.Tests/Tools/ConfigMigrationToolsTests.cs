@@ -150,6 +150,83 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Assert.Contains("No changelog entries found", ConfigMigrationTools.FindChangelog([_root], "zzz"));
     }
 
+    [Fact]
+    public void MapQuery_fallback_returns_mapping_when_no_regex_match()
+    {
+        var emptyRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(emptyRoot);
+        try
+        {
+            var output = ConfigMigrationTools.MapQuery([emptyRoot], "WithClustering");
+
+            Assert.Contains("WithClustering", output);
+            Assert.Contains("akka.cluster", output);
+            Assert.Contains("curated", output);
+        }
+        finally
+        {
+            Directory.Delete(emptyRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MapQuery_regex_takes_precedence_over_fallback()
+    {
+        var output = ConfigMigrationTools.MapQuery([_root], "WithClustering");
+
+        Assert.Contains("akka.cluster.roles", output);
+        Assert.DoesNotContain("curated", output);
+    }
+
+    [Fact]
+    public void MapQuery_fallback_returns_no_match_for_unknown()
+    {
+        var emptyRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(emptyRoot);
+        try
+        {
+            var output = ConfigMigrationTools.MapQuery([emptyRoot], "WithZzzNonexistent");
+
+            Assert.Contains("No HOCON keys found", output);
+        }
+        finally
+        {
+            Directory.Delete(emptyRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MapQuery_merges_regex_and_fallback_keys()
+    {
+        var output = ConfigMigrationTools.MapQuery([_root], "WithClustering");
+
+        Assert.Contains("akka.cluster.roles", output);
+        Assert.Contains("akka.cluster", output);
+        Assert.DoesNotContain("curated", output);
+    }
+
+    [Fact]
+    public void MapQuery_expanded_fallback_has_persistence_mappings()
+    {
+        var emptyRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(emptyRoot);
+        try
+        {
+            var journal = ConfigMigrationTools.MapQuery([emptyRoot], "WithJournal");
+            Assert.Contains("akka.persistence.journal", journal);
+
+            var snapshot = ConfigMigrationTools.MapQuery([emptyRoot], "WithSnapshotStore");
+            Assert.Contains("akka.persistence.snapshot-store", snapshot);
+
+            var shutdown = ConfigMigrationTools.MapQuery([emptyRoot], "WithCoordinatedShutdown");
+            Assert.Contains("akka.coordinated-shutdown", shutdown);
+        }
+        finally
+        {
+            Directory.Delete(emptyRoot, recursive: true);
+        }
+    }
+
     private void WriteFile(string relativePath, string content)
     {
         var fullPath = Path.Combine(_root, relativePath.Replace('/', Path.DirectorySeparatorChar));

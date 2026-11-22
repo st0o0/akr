@@ -32,7 +32,7 @@ public sealed partial class StreamPersistenceTools
     [GeneratedRegex(@"^\s*public\s+(?<sig>[^;{=]*\([^)]*\))", RegexOptions.NonBacktracking)]
     private static partial Regex PublicMethodPattern();
 
-    [GeneratedRegex(@"^\s*public\s+static\s+readonly\s+[^=;]*\bDefault\w*\s*=\s*[^;]+;", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
+    [GeneratedRegex(@"^\s*(?:public|internal)\s+static\s+(?:readonly\s+)?[^=;\r\n]*\b(?:Default|Instance|None)\w*\s*(?:=\s*[^;\r\n]+;|\{[^}]*\}\s*=\s*[^;\r\n]+;)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     private static partial Regex DefaultPattern();
 
     [GeneratedRegex(@"\bclass\s+GraphDsl\b|\bclass\s+Builder\b", RegexOptions.NonBacktracking)]

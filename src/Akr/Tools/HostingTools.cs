@@ -59,39 +59,30 @@ public sealed class HostingTools
         var sb = new StringBuilder();
         var hasPath = !string.IsNullOrWhiteSpace(path);
 
-        foreach (var root in roots)
+        var files = ConfigFiles.EnumerateConfigFiles(roots)
+            .OrderBy(f => f.Relative, StringComparer.Ordinal);
+
+        foreach (var (full, relative) in files)
         {
-            if (!Directory.Exists(root))
+            string content;
+            if (hasPath)
             {
-                continue;
-            }
-
-            var files = Directory.EnumerateFiles(root, "reference.conf", SearchOption.AllDirectories)
-                .Select(f => (Full: f, Relative: Path.GetRelativePath(root, f).Replace('\\', '/')))
-                .OrderBy(f => f.Relative, StringComparer.Ordinal);
-
-            foreach (var (full, relative) in files)
-            {
-                string content;
-                if (hasPath)
+                var block = ExtractHoconBlock(File.ReadAllLines(full), path!);
+                if (block is null)
                 {
-                    var block = ExtractHoconBlock(File.ReadAllLines(full), path!);
-                    if (block is null)
-                    {
-                        continue;
-                    }
-
-                    content = block;
-                }
-                else
-                {
-                    content = File.ReadAllText(full).TrimEnd();
+                    continue;
                 }
 
-                sb.AppendLine($"--- {relative} ---");
-                sb.AppendLine(content);
-                sb.AppendLine();
+                content = block;
             }
+            else
+            {
+                content = File.ReadAllText(full).TrimEnd();
+            }
+
+            sb.AppendLine($"--- {relative} ---");
+            sb.AppendLine(content);
+            sb.AppendLine();
         }
 
         if (sb.Length == 0)
