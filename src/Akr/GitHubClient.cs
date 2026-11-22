@@ -297,7 +297,7 @@ public sealed class GitHubClient
         }
     }
 
-    internal void WriteMetadata(string repoName, RepoMetadata metadata)
+    private void WriteMetadata(string repoName, RepoMetadata metadata)
     {
         var path = MetaPath(repoName);
         var dir = Path.GetDirectoryName(path)!;

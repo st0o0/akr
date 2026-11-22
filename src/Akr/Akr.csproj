@@ -7,31 +7,34 @@
     <ToolCommandName>akr</ToolCommandName>
     <PackageType>McpServer</PackageType>
 
-    <PackageId>Akr</PackageId>
     <Authors>st0o0</Authors>
-    <PackageTags>mcp;mcp-server;akka-net;akka;dotnet;ai;source-intelligence;code-search;type-lookup</PackageTags>
-    <Description>Akka.NET source intelligence for AI agents. 33 MCP tools for type lookup, member signatures, config reference, stream stages, hosting extensions, and more. Zero config - resolves latest Akka.NET source automatically.</Description>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 st0o0</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/st0o0/akr</PackageProjectUrl>
     <RepositoryUrl>https://github.com/st0o0/akr</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Akka.NET source intelligence for AI agents. 33 MCP tools for type lookup, member signatures, config reference, stream stages, hosting extensions, and more. Zero config - resolves latest Akka.NET source automatically.</Description>
+    <PackageTags>mcp;mcp-server;akka-net;akka;dotnet;ai;source-intelligence;code-search;type-lookup</PackageTags>
+    <DebugType>embedded</DebugType>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Http" />
-    <PackageReference Include="ModelContextProtocol" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <PackageReference Include="Terp" />
+    <PackageReference Include="Microsoft.Extensions.Http"/>
+    <PackageReference Include="ModelContextProtocol"/>
+    <PackageReference Include="Microsoft.Extensions.Hosting"/>
+    <PackageReference Include="Terp"/>
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Akr.Tests" />
+    <InternalsVisibleTo Include="Akr.Tests"/>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="/" />
+    <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" Visible="false"/>
+    <None Include="..\..\README.md" Pack="true" PackagePath="/"/>
   </ItemGroup>
 
 </Project>
