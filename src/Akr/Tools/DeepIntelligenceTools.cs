@@ -37,8 +37,15 @@ public sealed partial class DeepIntelligenceTools
     private static readonly string[] _responseSuffixes = ["Response", "Result"];
     private const string EventSuffix = "Event";
 
+    private readonly FileService _fileService;
+
+    public DeepIntelligenceTools(FileService fileService)
+    {
+        _fileService = fileService;
+    }
+
     [McpServerTool(Name = "type_hierarchy"), Description("Show the full inheritance tree of a C# type: ancestors (base types and interfaces) and descendants.")]
-    public static async Task<string> TypeHierarchyAsync(
+    public async Task<string> TypeHierarchyAsync(
         GitHubClient github,
         [Description("Type name (e.g. ActorBase, ReceiveActor, IActorRef)")] string type,
         CancellationToken cancellationToken = default)
@@ -48,7 +55,7 @@ public sealed partial class DeepIntelligenceTools
     }
 
     [McpServerTool(Name = "find_implementations"), Description("Find all classes implementing an interface, including classes deriving from an implementing class.")]
-    public static async Task<string> FindImplementationsAsync(
+    public async Task<string> FindImplementationsAsync(
         GitHubClient github,
         [Description("Interface name (e.g. IActorRef, IWithTimers)")] string @interface,
         CancellationToken cancellationToken = default)
@@ -58,7 +65,7 @@ public sealed partial class DeepIntelligenceTools
     }
 
     [McpServerTool(Name = "find_messages"), Description("List message types handled by an actor via Receive<T>, ReceiveAsync<T>, Command<T> handlers.")]
-    public static async Task<string> FindMessagesAsync(
+    public async Task<string> FindMessagesAsync(
         GitHubClient github,
         [Description("Actor class name")] string actor,
         CancellationToken cancellationToken = default)
@@ -68,7 +75,7 @@ public sealed partial class DeepIntelligenceTools
     }
 
     [McpServerTool(Name = "message_protocol"), Description("Summarize Command/Query/Event/Response/Result types in a namespace or actor, grouped into request-response pairs.")]
-    public static async Task<string> MessageProtocolAsync(
+    public async Task<string> MessageProtocolAsync(
         GitHubClient github,
         [Description("Namespace fragment or actor/type name")] string scope,
         CancellationToken cancellationToken = default)
@@ -78,7 +85,7 @@ public sealed partial class DeepIntelligenceTools
     }
 
     [McpServerTool(Name = "virtual_methods"), Description("List virtual and abstract methods of a type, ordered by actor lifecycle (PreStart, PreRestart, PostRestart, PostStop, AroundReceive, Receive).")]
-    public static async Task<string> VirtualMethodsAsync(
+    public async Task<string> VirtualMethodsAsync(
         GitHubClient github,
         [Description("Type name (e.g. ActorBase, ReceiveActor)")] string type,
         CancellationToken cancellationToken = default)
@@ -88,7 +95,7 @@ public sealed partial class DeepIntelligenceTools
     }
 
     [McpServerTool(Name = "supervision_defaults"), Description("Show supervision strategies: default strategy, or SupervisorStrategy overrides for a given type.")]
-    public static async Task<string> SupervisionDefaultsAsync(
+    public async Task<string> SupervisionDefaultsAsync(
         GitHubClient github,
         [Description("Type name, or 'default' (default) for the framework default strategy")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -137,7 +144,7 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- type_hierarchy ----
 
-    public static string Hierarchy(IReadOnlyList<string> roots, string type)
+    public string Hierarchy(IReadOnlyList<string> roots, string type)
     {
         var name = BaseName(type);
         var all = ScanTypes(roots);
@@ -204,7 +211,7 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- find_implementations ----
 
-    public static string Implementations(IReadOnlyList<string> roots, string @interface)
+    public string Implementations(IReadOnlyList<string> roots, string @interface)
     {
         var name = BaseName(@interface);
         var all = ScanTypes(roots);
@@ -259,7 +266,7 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- find_messages ----
 
-    public static string Messages(IReadOnlyList<string> roots, string actor)
+    public string Messages(IReadOnlyList<string> roots, string actor)
     {
         var name = BaseName(actor);
         var decls = ScanTypes(roots).Where(t => t.Name == name).ToList();
@@ -300,7 +307,7 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- message_protocol ----
 
-    public static string Protocol(IReadOnlyList<string> roots, string scope)
+    public string Protocol(IReadOnlyList<string> roots, string scope)
     {
         var all = ScanTypes(roots);
         var scopedSources = all
@@ -380,7 +387,7 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- virtual_methods ----
 
-    public static string VirtualMethods(IReadOnlyList<string> roots, string type)
+    public string VirtualMethods(IReadOnlyList<string> roots, string type)
     {
         var name = BaseName(type);
         var decls = ScanTypes(roots).Where(t => t.Name == name).ToList();
@@ -450,12 +457,12 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- supervision_defaults ----
 
-    public static IReadOnlyList<SupervisionInfo> FindSupervision(IReadOnlyList<string> roots)
+    public IReadOnlyList<SupervisionInfo> FindSupervision(IReadOnlyList<string> roots)
     {
         var results = new List<SupervisionInfo>();
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            var content = File.ReadAllText(full);
+            var content = _fileService.ReadAllText(full);
             var lines = content.Split('\n');
             var current = "";
             for (var i = 0; i < lines.Length; i++)
@@ -493,7 +500,7 @@ public sealed partial class DeepIntelligenceTools
         return results;
     }
 
-    public static string Supervision(IReadOnlyList<string> roots, string? filter)
+    public string Supervision(IReadOnlyList<string> roots, string? filter)
     {
         var all = FindSupervision(roots);
         var isDefault = string.IsNullOrWhiteSpace(filter) || filter.Equals("default", StringComparison.OrdinalIgnoreCase);
@@ -559,7 +566,7 @@ public sealed partial class DeepIntelligenceTools
 
     // ---- shared scanning helpers ----
 
-    private static List<TypeDecl> ScanTypes(IReadOnlyList<string> roots)
+    private List<TypeDecl> ScanTypes(IReadOnlyList<string> roots)
     {
         var key = string.Join('\n', roots.OrderBy(r => r, StringComparer.Ordinal));
         if (_scanCache.TryGetValue(key, out var cached))
@@ -568,9 +575,9 @@ public sealed partial class DeepIntelligenceTools
         }
 
         var list = new List<TypeDecl>();
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            var content = File.ReadAllText(full);
+            var content = _fileService.ReadAllText(full);
             var source = new SourceFile(relative, content);
             var ns = NamespacePattern().Match(content) is { Success: true } m ? m.Groups[1].Value : "";
             foreach (Match d in DeclPattern().Matches(content))

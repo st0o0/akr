@@ -10,8 +10,15 @@ public sealed record MemberInfo(string Kind, string Signature);
 [McpServerToolType]
 public sealed partial class TypeTools
 {
+    private readonly FileService _fileService;
+
+    public TypeTools(FileService fileService)
+    {
+        _fileService = fileService;
+    }
+
     [McpServerTool(Name = "lookup_type"), Description("Find a C# type by name across cached Akka.NET source code and return its source.")]
-    public static async Task<string> LookupTypeAsync(
+    public async Task<string> LookupTypeAsync(
         GitHubClient github,
         [Description("Type name to look up (e.g. ActorBase, IActorRef, Props)")] string type,
         [Description("Return full file source instead of summary (default: false)")] bool? fullSource = null,
@@ -51,7 +58,7 @@ public sealed partial class TypeTools
     }
 
     [McpServerTool(Name = "type_members"), Description("Get compact member signatures for a C# type in Akka.NET source.")]
-    public static async Task<string> GetMembersAsync(
+    public async Task<string> GetMembersAsync(
         GitHubClient github,
         [Description("Type name (e.g. ActorBase, Props, IActorRef)")] string type,
         CancellationToken cancellationToken = default)
@@ -164,7 +171,14 @@ public sealed partial class TypeTools
     [GeneratedRegex(@"^\s*namespace\s+([\w.]+)", RegexOptions.Multiline)]
     private static partial Regex NamespacePattern();
 
+    public IReadOnlyList<TypeLookupResult> FindType(
+        IReadOnlyList<string> sourceRoots,
+        string typeName,
+        bool fullSource = false) =>
+        FindType(_fileService, sourceRoots, typeName, fullSource);
+
     public static IReadOnlyList<TypeLookupResult> FindType(
+        FileService fileService,
         IReadOnlyList<string> sourceRoots,
         string typeName,
         bool fullSource = false)
@@ -175,29 +189,20 @@ public sealed partial class TypeTools
 
         var results = new List<TypeLookupResult>();
 
-        foreach (var root in sourceRoots)
+        foreach (var (full, relative) in fileService.EnumerateFiles(sourceRoots, "*.cs"))
         {
-            if (!Directory.Exists(root))
+            var content = fileService.ReadAllText(full);
+            if (!typePattern.IsMatch(content))
             {
                 continue;
             }
 
-            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
-            {
-                var content = File.ReadAllText(file);
-                if (!typePattern.IsMatch(content))
-                {
-                    continue;
-                }
+            var lines = content.Split('\n');
+            var ns = ExtractNamespace(lines);
+            var declaration = ExtractDeclaration(lines, typePattern);
+            var source = fullSource ? content : ExtractSummary(lines, typePattern);
 
-                var lines = content.Split('\n');
-                var ns = ExtractNamespace(lines);
-                var declaration = ExtractDeclaration(lines, typePattern);
-                var source = fullSource ? content : ExtractSummary(lines, typePattern);
-                var relativePath = Path.GetRelativePath(root, file).Replace('\\', '/');
-
-                results.Add(new TypeLookupResult(relativePath, ns, declaration, source));
-            }
+            results.Add(new TypeLookupResult(relative, ns, declaration, source));
         }
 
         return results;

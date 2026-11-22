@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
 using Akr.Registry;
+using Akr.Tools;
 using Microsoft.Extensions.Logging;
 
 namespace Akr;
@@ -17,6 +18,7 @@ public sealed class GitHubClient
     private readonly string _cacheRoot;
     private readonly HttpClient _httpClient;
     private readonly ILogger<GitHubClient> _logger;
+    private readonly FileService _fileService;
     private readonly TimeSpan _cacheTtl;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
@@ -25,13 +27,15 @@ public sealed class GitHubClient
     public GitHubClient(
         HttpClient httpClient,
         ILogger<GitHubClient> logger,
+        FileService fileService,
         string? cacheRoot = null,
         TimeSpan? cacheTtl = null,
         TimeProvider? timeProvider = null)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _cacheRoot = cacheRoot ?? Path.Combine(
+        _fileService = fileService;
+        _cacheRoot = cacheRoot ?? _fileService.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".akr", "sources");
         _cacheTtl = cacheTtl ?? ParseCacheTtl(logger);
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -41,9 +45,9 @@ public sealed class GitHubClient
     {
         var version = await ResolveLatestAsync(repo, cancellationToken);
         var repoName = RepoName(repo);
-        var targetPath = Path.Combine(_cacheRoot, repoName, version);
+        var targetPath = _fileService.Combine(_cacheRoot, repoName, version);
 
-        if (Directory.Exists(targetPath))
+        if (_fileService.DirectoryExists(targetPath))
         {
             return targetPath;
         }
@@ -55,9 +59,9 @@ public sealed class GitHubClient
         var tempPath = targetPath + ".tmp";
         try
         {
-            if (Directory.Exists(tempPath))
+            if (_fileService.DirectoryExists(tempPath))
             {
-                Directory.Delete(tempPath, true);
+                _fileService.DeleteDirectory(tempPath, true);
             }
 
             if (tagFormat == "v-prefixed")
@@ -78,9 +82,9 @@ public sealed class GitHubClient
                 catch (SourceFetchException)
                 {
                     _logger.LogDebug("Tag {Tag} failed for {Repo}, trying v-prefixed", version, repo);
-                    if (Directory.Exists(tempPath))
+                    if (_fileService.DirectoryExists(tempPath))
                     {
-                        Directory.Delete(tempPath, true);
+                        _fileService.DeleteDirectory(tempPath, true);
                     }
 
                     await FetchArchiveAsync(repo, $"v{version}", tempPath, cancellationToken);
@@ -88,13 +92,13 @@ public sealed class GitHubClient
                 }
             }
 
-            Directory.Move(tempPath, targetPath);
+            _fileService.MoveDirectory(tempPath, targetPath);
         }
         catch
         {
-            if (Directory.Exists(tempPath))
+            if (_fileService.DirectoryExists(tempPath))
             {
-                Directory.Delete(tempPath, true);
+                _fileService.DeleteDirectory(tempPath, true);
             }
 
             throw;
@@ -219,7 +223,7 @@ public sealed class GitHubClient
             await response.Content.ReadAsStreamAsync(cancellationToken),
             CompressionMode.Decompress);
 
-        Directory.CreateDirectory(targetPath);
+        _fileService.CreateDirectory(targetPath);
         await ExtractTarAsync(gzipStream, targetPath, cancellationToken);
 
         _logger.LogInformation("Extracted {Repo}@{Tag} to {Path}", repo, tag, targetPath);
@@ -243,7 +247,7 @@ public sealed class GitHubClient
         }
     }
 
-    private static async Task ExtractTarAsync(Stream stream, string targetPath, CancellationToken cancellationToken)
+    private async Task ExtractTarAsync(Stream stream, string targetPath, CancellationToken cancellationToken)
     {
         await using var reader = new TarReader(stream);
 
@@ -260,14 +264,13 @@ public sealed class GitHubClient
                 continue;
             }
 
-            var fullPath = Path.GetFullPath(Path.Combine(targetPath, entryName));
-            if (!fullPath.StartsWith(Path.GetFullPath(targetPath), StringComparison.Ordinal))
+            var fullPath = _fileService.GetFullPath(_fileService.Combine(targetPath, entryName));
+            if (!fullPath.StartsWith(_fileService.GetFullPath(targetPath), StringComparison.Ordinal))
             {
                 continue;
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-            await entry.ExtractToFileAsync(fullPath, overwrite: false, cancellationToken);
+            await _fileService.ExtractTarEntryAsync(entry, fullPath, cancellationToken);
         }
     }
 
@@ -282,19 +285,19 @@ public sealed class GitHubClient
         repo.Contains('/') ? repo[(repo.IndexOf('/') + 1)..] : repo;
 
     private string MetaPath(string repoName) =>
-        Path.Combine(_cacheRoot, "meta", $"{repoName}.json");
+        _fileService.Combine(_cacheRoot, "meta", $"{repoName}.json");
 
     internal RepoMetadata? ReadMetadata(string repoName)
     {
         var path = MetaPath(repoName);
         try
         {
-            if (!File.Exists(path))
+            if (!_fileService.FileExists(path))
             {
                 return null;
             }
 
-            var json = File.ReadAllBytes(path);
+            var json = _fileService.ReadAllBytes(path);
             return JsonSerializer.Deserialize<RepoMetadata>(json, _jsonOptions);
         }
         catch (Exception ex) when (ex is JsonException or IOException)
@@ -307,32 +310,27 @@ public sealed class GitHubClient
     private void WriteMetadata(string repoName, RepoMetadata metadata)
     {
         var path = MetaPath(repoName);
-        var dir = Path.GetDirectoryName(path)!;
-        Directory.CreateDirectory(dir);
-
-        var tempPath = path + ".tmp";
-        File.WriteAllBytes(tempPath, JsonSerializer.SerializeToUtf8Bytes(metadata, _jsonOptions));
-        File.Move(tempPath, path, overwrite: true);
+        _fileService.WriteAtomic(path, JsonSerializer.SerializeToUtf8Bytes(metadata, _jsonOptions));
     }
 
     private void CleanupOldVersions(string repoName, string currentVersion)
     {
         try
         {
-            var repoDir = Path.Combine(_cacheRoot, repoName);
-            if (!Directory.Exists(repoDir))
+            var repoDir = _fileService.Combine(_cacheRoot, repoName);
+            if (!_fileService.DirectoryExists(repoDir))
             {
                 return;
             }
 
-            foreach (var dir in Directory.EnumerateDirectories(repoDir))
+            foreach (var dir in _fileService.EnumerateDirectories(repoDir))
             {
-                var dirName = Path.GetFileName(dir);
+                var dirName = _fileService.GetFileName(dir);
                 if (!string.Equals(dirName, currentVersion, StringComparison.Ordinal) &&
                     !dirName.EndsWith(".tmp", StringComparison.Ordinal))
                 {
                     _logger.LogInformation("Cleaning up old version {Repo}/{Version}", repoName, dirName);
-                    Directory.Delete(dir, true);
+                    _fileService.DeleteDirectory(dir, true);
                 }
             }
         }

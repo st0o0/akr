@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -6,12 +7,14 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
 {
     private readonly string _testRoot;
     private readonly IReadOnlyList<string> _roots;
+    private readonly DeepIntelligenceTools _tools;
 
     public DeepIntelligenceToolsTests()
     {
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
         _roots = [_testRoot];
+        _tools = new DeepIntelligenceTools(new FileService(new FileSystem()));
 
         WriteFile("Actor/ActorBase.cs", """
             namespace Akka.Actor;
@@ -94,7 +97,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Hierarchy_shows_ancestors_and_descendants()
     {
-        var output = DeepIntelligenceTools.Hierarchy(_roots, "LocalActorRef");
+        var output = _tools.Hierarchy(_roots, "LocalActorRef");
 
         Assert.Contains("-> ActorBase (class)", output);
         Assert.Contains("-> IInternalActor (interface)", output);
@@ -105,7 +108,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Hierarchy_handles_generics_and_where_clauses()
     {
-        var output = DeepIntelligenceTools.Hierarchy(_roots, "RemoteActorRef<T>");
+        var output = _tools.Hierarchy(_roots, "RemoteActorRef<T>");
 
         Assert.Contains("-> IActorRef", output);
         Assert.Contains("-> IDisposable (external)", output);
@@ -115,7 +118,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Hierarchy_unknown_type_reports_not_found()
     {
-        Assert.Contains("not found", DeepIntelligenceTools.Hierarchy(_roots, "Nope"));
+        Assert.Contains("not found", _tools.Hierarchy(_roots, "Nope"));
     }
 
     // find_implementations
@@ -123,7 +126,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Implementations_finds_direct_and_via_base_class()
     {
-        var output = DeepIntelligenceTools.Implementations(_roots, "IActorRef");
+        var output = _tools.Implementations(_roots, "IActorRef");
 
         Assert.Contains("LocalActorRef (class)", output);
         Assert.Contains("RemoteActorRef (class)", output);
@@ -134,7 +137,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Implementations_no_match()
     {
-        Assert.Contains("No implementations", DeepIntelligenceTools.Implementations(_roots, "IUnknown"));
+        Assert.Contains("No implementations", _tools.Implementations(_roots, "IUnknown"));
     }
 
     // find_messages
@@ -142,7 +145,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Messages_extracts_handler_types()
     {
-        var output = DeepIntelligenceTools.Messages(_roots, "UserActor");
+        var output = _tools.Messages(_roots, "UserActor");
 
         Assert.Contains("GetUserQuery  [Receive]", output);
         Assert.Contains("CreateUserCommand  [ReceiveAsync]", output);
@@ -154,8 +157,8 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Messages_no_handlers_or_unknown_actor()
     {
-        Assert.Contains("No Receive/Command handlers", DeepIntelligenceTools.Messages(_roots, "EmptyActor"));
-        Assert.Contains("not found", DeepIntelligenceTools.Messages(_roots, "Ghost"));
+        Assert.Contains("No Receive/Command handlers", _tools.Messages(_roots, "EmptyActor"));
+        Assert.Contains("not found", _tools.Messages(_roots, "Ghost"));
     }
 
     // message_protocol
@@ -163,7 +166,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Protocol_pairs_requests_with_responses()
     {
-        var output = DeepIntelligenceTools.Protocol(_roots, "MyApp.Users");
+        var output = _tools.Protocol(_roots, "MyApp.Users");
 
         Assert.Contains("GetUserQuery -> GetUserResponse", output);
         Assert.Contains("CreateUserCommand -> CreateUserResult", output);
@@ -174,8 +177,8 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Protocol_by_actor_name_and_no_match()
     {
-        Assert.Contains("GetUserQuery", DeepIntelligenceTools.Protocol(_roots, "UserActor"));
-        Assert.Contains("No Command/Query", DeepIntelligenceTools.Protocol(_roots, "Nothing.Here"));
+        Assert.Contains("GetUserQuery", _tools.Protocol(_roots, "UserActor"));
+        Assert.Contains("No Command/Query", _tools.Protocol(_roots, "Nothing.Here"));
     }
 
     // virtual_methods
@@ -183,7 +186,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void VirtualMethods_are_ordered_by_lifecycle()
     {
-        var output = DeepIntelligenceTools.VirtualMethods(_roots, "ActorBase");
+        var output = _tools.VirtualMethods(_roots, "ActorBase");
 
         var order = new[] { "PreStart", "PreRestart", "PostRestart", "PostStop", "AroundReceive", "Receive(object", "SupervisorStrategy", "Unhandled" };
         var positions = order.Select(o => output.IndexOf(o, StringComparison.Ordinal)).ToArray();
@@ -196,8 +199,8 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void VirtualMethods_none_or_unknown()
     {
-        Assert.Contains("No virtual or abstract", DeepIntelligenceTools.VirtualMethods(_roots, "UserActor"));
-        Assert.Contains("not found", DeepIntelligenceTools.VirtualMethods(_roots, "Ghost"));
+        Assert.Contains("No virtual or abstract", _tools.VirtualMethods(_roots, "UserActor"));
+        Assert.Contains("not found", _tools.VirtualMethods(_roots, "Ghost"));
     }
 
     // supervision_defaults
@@ -205,7 +208,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Supervision_default_shows_strategy_and_directives()
     {
-        var output = DeepIntelligenceTools.Supervision(_roots, "default");
+        var output = _tools.Supervision(_roots, "default");
 
         Assert.Contains("OneForOneStrategy", output);
         Assert.Contains("Directives: Restart, Stop", output);
@@ -214,7 +217,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Supervision_for_type_shows_override()
     {
-        var output = DeepIntelligenceTools.Supervision(_roots, "UserActor");
+        var output = _tools.Supervision(_roots, "UserActor");
 
         Assert.Contains("UserActor [override] AllForOneStrategy", output);
         Assert.Contains("Directives: Escalate", output);
@@ -223,15 +226,15 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
     [Fact]
     public void Supervision_no_match()
     {
-        Assert.Contains("No SupervisorStrategy", DeepIntelligenceTools.Supervision(_roots, "EmptyActor"));
-        Assert.Contains("No default supervision", DeepIntelligenceTools.Supervision([Path.Combine(_testRoot, "Users")], null));
+        Assert.Contains("No SupervisorStrategy", _tools.Supervision(_roots, "EmptyActor"));
+        Assert.Contains("No default supervision", _tools.Supervision([Path.Combine(_testRoot, "Users")], null));
     }
 
     [Fact]
     public void ScanTypes_returns_same_cached_instance_on_second_call()
     {
-        var first = DeepIntelligenceTools.Hierarchy(_roots, "ActorBase");
-        var second = DeepIntelligenceTools.Hierarchy(_roots, "ActorBase");
+        var first = _tools.Hierarchy(_roots, "ActorBase");
+        var second = _tools.Hierarchy(_roots, "ActorBase");
 
         Assert.Equal(first, second);
     }

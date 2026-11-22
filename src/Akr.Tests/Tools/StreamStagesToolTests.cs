@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,9 +6,12 @@ namespace Akr.Tests.Tools;
 public sealed class StreamStagesToolTests : IDisposable
 {
     private readonly string _testRoot;
+    private readonly StreamTools _tools;
 
     public StreamStagesToolTests()
     {
+        var fs = new FileService(new FileSystem());
+        _tools = new StreamTools(fs, new SourceSearcher(fs));
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 
@@ -46,7 +50,7 @@ public sealed class StreamStagesToolTests : IDisposable
             """);
     }
 
-    private IReadOnlyList<StageInfo> Find(string? filter = null) => StreamTools.FindStages([_testRoot], filter);
+    private IReadOnlyList<StageInfo> Find(string? filter = null) => _tools.FindStages([_testRoot], filter);
 
     [Fact]
     public void GraphStage_with_FlowShape_is_Flow()

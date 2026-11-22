@@ -15,7 +15,13 @@ public sealed record ConfigDiffResult(
 [McpServerToolType]
 public sealed partial class ConfigMigrationTools
 {
+    private readonly FileService _fileService;
     private const int MaxSectionLines = 40;
+
+    public ConfigMigrationTools(FileService fileService)
+    {
+        _fileService = fileService;
+    }
 
     [GeneratedRegex(@"public\s+static\s+\S+\s+(?<name>(With|Add)\w+)\s*[\(<]", RegexOptions.NonBacktracking)]
     private static partial Regex MethodPattern();
@@ -55,7 +61,7 @@ public sealed partial class ConfigMigrationTools
     ];
 
     [McpServerTool(Name = "config_tree"), Description("Hierarchical view of HOCON config paths from reference.conf files, annotated with the Akka.Hosting With* method that sets them.")]
-    public static async Task<string> ConfigTreeAsync(
+    public async Task<string> ConfigTreeAsync(
         GitHubClient github,
         [Description("Optional HOCON path prefix to filter (e.g. akka.cluster)")] string? path = null,
         CancellationToken cancellationToken = default)
@@ -65,7 +71,7 @@ public sealed partial class ConfigMigrationTools
     }
 
     [McpServerTool(Name = "hosting_to_hocon"), Description("Bidirectional mapping between Akka.Hosting With*/Add* methods and HOCON config keys.")]
-    public static async Task<string> HostingToHoconAsync(
+    public async Task<string> HostingToHoconAsync(
         GitHubClient github,
         [Description("Hosting method (e.g. WithClustering) or HOCON path (e.g. akka.cluster.roles)")] string query,
         CancellationToken cancellationToken = default)
@@ -75,7 +81,7 @@ public sealed partial class ConfigMigrationTools
     }
 
     [McpServerTool(Name = "hosting_startup_order"), Description("Registration ordering constraints and DI resolution hints from Akka.Hosting source.")]
-    public static async Task<string> StartupOrderAsync(
+    public async Task<string> StartupOrderAsync(
         GitHubClient github,
         [Description("Optional keyword to filter by file path")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -85,7 +91,7 @@ public sealed partial class ConfigMigrationTools
     }
 
     [McpServerTool(Name = "config_diff"), Description("Config key changes between versions. Currently lists all config keys of the current cached version (diff against empty).")]
-    public static async Task<string> ConfigDiffAsync(
+    public async Task<string> ConfigDiffAsync(
         GitHubClient github,
         [Description("Older version (reserved; only the latest cached version is currently supported)")] string? versionA = null,
         [Description("Newer version (reserved; only the latest cached version is currently supported)")] string? versionB = null,
@@ -105,7 +111,7 @@ public sealed partial class ConfigMigrationTools
     }
 
     [McpServerTool(Name = "changelog"), Description("Search CHANGELOG / RELEASE_NOTES files in cached source for breaking changes.")]
-    public static async Task<string> ChangelogAsync(
+    public async Task<string> ChangelogAsync(
         GitHubClient github,
         [Description("Optional keyword to filter changelog entries")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -124,7 +130,7 @@ public sealed partial class ConfigMigrationTools
 
         foreach (var raw in lines)
         {
-            var line = HoconHelper.StripComment(raw).Trim();
+            var line = FileService.StripHoconComment(raw).Trim();
             if (line.Length == 0)
             {
                 continue;
@@ -187,12 +193,12 @@ public sealed partial class ConfigMigrationTools
         return entries;
     }
 
-    public static Dictionary<string, string?> CollectConfig(IEnumerable<string> roots)
+    public Dictionary<string, string?> CollectConfig(IEnumerable<string> roots)
     {
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-        foreach (var (full, _) in ConfigFiles.EnumerateConfigFiles(roots))
+        foreach (var (full, _) in _fileService.EnumerateConfigFiles(roots))
         {
-            foreach (var entry in ParseConfig(File.ReadAllLines(full)))
+            foreach (var entry in ParseConfig(_fileService.ReadAllLines(full)))
             {
                 result[entry.Path] = entry.Value;
             }
@@ -203,37 +209,34 @@ public sealed partial class ConfigMigrationTools
 
     // ---- hosting mapping ----
 
-    public static Dictionary<string, SortedSet<string>> CollectHostingKeys(IEnumerable<string> roots)
+    public Dictionary<string, SortedSet<string>> CollectHostingKeys(IEnumerable<string> roots)
     {
         var map = new Dictionary<string, SortedSet<string>>(StringComparer.Ordinal);
-        foreach (var root in roots.Where(Directory.Exists))
+        foreach (var (full, _) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+            string? current = null;
+            foreach (var line in _fileService.ReadLines(full))
             {
-                string? current = null;
-                foreach (var line in File.ReadLines(file))
+                var m = MethodPattern().Match(line);
+                if (m.Success)
                 {
-                    var m = MethodPattern().Match(line);
-                    if (m.Success)
+                    current = m.Groups["name"].Value;
+                }
+
+                if (current is null)
+                {
+                    continue;
+                }
+
+                foreach (Match k in HoconKeyPattern().Matches(line))
+                {
+                    if (!map.TryGetValue(current, out var set))
                     {
-                        current = m.Groups["name"].Value;
+                        set = new SortedSet<string>(StringComparer.Ordinal);
+                        map[current] = set;
                     }
 
-                    if (current is null)
-                    {
-                        continue;
-                    }
-
-                    foreach (Match k in HoconKeyPattern().Matches(line))
-                    {
-                        if (!map.TryGetValue(current, out var set))
-                        {
-                            set = new SortedSet<string>(StringComparer.Ordinal);
-                            map[current] = set;
-                        }
-
-                        set.Add(k.Value);
-                    }
+                    set.Add(k.Value);
                 }
             }
         }
@@ -241,7 +244,7 @@ public sealed partial class ConfigMigrationTools
         return map;
     }
 
-    public static string MapQuery(IEnumerable<string> roots, string query)
+    public string MapQuery(IEnumerable<string> roots, string query)
     {
         var rootList = roots.ToList();
         var scannedMap = CollectHostingKeys(rootList);
@@ -315,7 +318,7 @@ public sealed partial class ConfigMigrationTools
 
     // ---- tree ----
 
-    public static string BuildConfigTree(IEnumerable<string> roots, string? path)
+    public string BuildConfigTree(IEnumerable<string> roots, string? path)
     {
         var rootList = roots.ToList();
         var config = CollectConfig(rootList);
@@ -411,35 +414,31 @@ public sealed partial class ConfigMigrationTools
 
     // ---- startup order ----
 
-    public static string FindStartupOrder(IEnumerable<string> roots, string? filter)
+    public string FindStartupOrder(IEnumerable<string> roots, string? filter)
     {
         var constraints = new List<string>();
         var hints = new List<string>();
 
-        foreach (var root in roots.Where(Directory.Exists))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+            if (!string.IsNullOrEmpty(filter) && !relative.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
-                var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-                if (!string.IsNullOrEmpty(filter) && !relative.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var lines = File.ReadAllLines(file);
-                var isHosting = relative.Contains("Hosting", StringComparison.OrdinalIgnoreCase);
-                for (var i = 0; i < lines.Length; i++)
+            var lines = _fileService.ReadAllLines(full);
+            var isHosting = relative.Contains("Hosting", StringComparison.OrdinalIgnoreCase);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var t = lines[i].Trim();
+                var isComment = t.StartsWith("//", StringComparison.Ordinal) || t.StartsWith('*');
+                if (isComment && OrderingPattern().IsMatch(t))
                 {
-                    var t = lines[i].Trim();
-                    var isComment = t.StartsWith("//", StringComparison.Ordinal) || t.StartsWith('*');
-                    if (isComment && OrderingPattern().IsMatch(t))
-                    {
-                        constraints.Add($"{relative}:{i + 1}: {t.TrimStart('/', '*', ' ')}");
-                    }
-                    else if (isHosting && !isComment && hints.Count < 50 && DiHintPattern().IsMatch(t))
-                    {
-                        hints.Add($"{relative}:{i + 1}: {t}");
-                    }
+                    constraints.Add($"{relative}:{i + 1}: {t.TrimStart('/', '*', ' ')}");
+                }
+                else if (isHosting && !isComment && hints.Count < 50 && DiHintPattern().IsMatch(t))
+                {
+                    hints.Add($"{relative}:{i + 1}: {t}");
                 }
             }
         }
@@ -473,40 +472,38 @@ public sealed partial class ConfigMigrationTools
 
     // ---- changelog ----
 
-    public static string FindChangelog(IEnumerable<string> roots, string? filter)
+    public string FindChangelog(IEnumerable<string> roots, string? filter)
     {
         var sb = new StringBuilder();
         var limit = string.IsNullOrWhiteSpace(filter) ? 5 : 10;
 
-        foreach (var root in roots.Where(Directory.Exists))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.md"))
         {
-            var files = Directory.EnumerateFiles(root, "*.md", SearchOption.AllDirectories)
-                .Where(f => IsChangelogName(Path.GetFileName(f)))
-                .OrderBy(f => f, StringComparer.Ordinal);
-
-            foreach (var file in files)
+            if (!IsChangelogName(_fileService.GetFileName(full)))
             {
-                var sections = SplitSections(File.ReadAllLines(file));
-                if (!string.IsNullOrWhiteSpace(filter))
+                continue;
+            }
+
+            var sections = SplitSections(_fileService.ReadAllLines(full));
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                sections = [.. sections.Where(s => s.Any(l => l.Contains(filter, StringComparison.OrdinalIgnoreCase)))];
+            }
+
+            if (sections.Count == 0)
+            {
+                continue;
+            }
+
+            sb.AppendLine($"--- {relative} ---");
+            foreach (var section in sections.Take(limit))
+            {
+                foreach (var l in section.Take(MaxSectionLines))
                 {
-                    sections = [.. sections.Where(s => s.Any(l => l.Contains(filter, StringComparison.OrdinalIgnoreCase)))];
+                    sb.AppendLine(l);
                 }
 
-                if (sections.Count == 0)
-                {
-                    continue;
-                }
-
-                sb.AppendLine($"--- {Path.GetRelativePath(root, file).Replace('\\', '/')} ---");
-                foreach (var section in sections.Take(limit))
-                {
-                    foreach (var l in section.Take(MaxSectionLines))
-                    {
-                        sb.AppendLine(l);
-                    }
-
-                    sb.AppendLine();
-                }
+                sb.AppendLine();
             }
         }
 

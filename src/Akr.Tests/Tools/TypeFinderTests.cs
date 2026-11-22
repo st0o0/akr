@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,9 +6,11 @@ namespace Akr.Tests.Tools;
 public sealed class TypeFinderTests : IDisposable
 {
     private readonly string _testRoot;
+    private readonly TypeTools _tools;
 
     public TypeFinderTests()
     {
+        _tools = new TypeTools(new FileService(new FileSystem()));
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 
@@ -49,7 +52,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Finds_type_by_exact_name()
     {
-        var results = TypeTools.FindType([_testRoot], "Props");
+        var results = _tools.FindType([_testRoot], "Props");
 
         Assert.Single(results);
         Assert.Equal("Akka.Actor", results[0].Namespace);
@@ -59,7 +62,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Does_not_match_partial_names()
     {
-        var results = TypeTools.FindType([_testRoot], "Actor");
+        var results = _tools.FindType([_testRoot], "Actor");
 
         // Should match "class Actor" in Other/ but NOT "class ActorBase" or "class ActorSystem"
         Assert.Single(results);
@@ -69,7 +72,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Returns_full_source_when_requested()
     {
-        var results = TypeTools.FindType([_testRoot], "Props", fullSource: true);
+        var results = _tools.FindType([_testRoot], "Props", fullSource: true);
 
         Assert.Single(results);
         Assert.Contains("static Props Create<T>", results[0].Source);
@@ -79,7 +82,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Returns_summary_by_default()
     {
-        var results = TypeTools.FindType([_testRoot], "ActorBase");
+        var results = _tools.FindType([_testRoot], "ActorBase");
 
         Assert.Single(results);
         Assert.Contains("PreStart", results[0].Source);
@@ -89,7 +92,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Returns_empty_for_unknown_type()
     {
-        var results = TypeTools.FindType([_testRoot], "NonExistent");
+        var results = _tools.FindType([_testRoot], "NonExistent");
 
         Assert.Empty(results);
     }
@@ -97,7 +100,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Finds_abstract_class()
     {
-        var results = TypeTools.FindType([_testRoot], "ActorSystem");
+        var results = _tools.FindType([_testRoot], "ActorSystem");
 
         Assert.Single(results);
         Assert.Contains("abstract class ActorSystem", results[0].Declaration);

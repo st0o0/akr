@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,9 +6,11 @@ namespace Akr.Tests.Tools;
 public sealed class ConfigMigrationToolsTests : IDisposable
 {
     private readonly string _root;
+    private readonly ConfigMigrationTools _tools;
 
     public ConfigMigrationToolsTests()
     {
+        _tools = new ConfigMigrationTools(new FileService(new FileSystem()));
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 
@@ -60,7 +63,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void ConfigTree_annotates_hosting_methods()
     {
-        var tree = ConfigMigrationTools.BuildConfigTree([_root], "akka.cluster");
+        var tree = _tools.BuildConfigTree([_root], "akka.cluster");
 
         Assert.Contains("  cluster", tree);
         Assert.Contains("roles = []  [Hosting: WithClustering]", tree);
@@ -70,13 +73,13 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void ConfigTree_reports_missing_path()
     {
-        Assert.Contains("No config found", ConfigMigrationTools.BuildConfigTree([_root], "akka.nope"));
+        Assert.Contains("No config found", _tools.BuildConfigTree([_root], "akka.nope"));
     }
 
     [Fact]
     public void MapQuery_method_to_keys()
     {
-        var output = ConfigMigrationTools.MapQuery([_root], "WithClustering");
+        var output = _tools.MapQuery([_root], "WithClustering");
 
         Assert.Contains("akka.cluster.roles", output);
     }
@@ -84,16 +87,16 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_key_to_method()
     {
-        var output = ConfigMigrationTools.MapQuery([_root], "akka.cluster.roles");
+        var output = _tools.MapQuery([_root], "akka.cluster.roles");
 
         Assert.Contains("WithClustering", output);
-        Assert.Contains("No Hosting method found", ConfigMigrationTools.MapQuery([_root], "akka.zzz"));
+        Assert.Contains("No Hosting method found", _tools.MapQuery([_root], "akka.zzz"));
     }
 
     [Fact]
     public void StartupOrder_finds_constraints_and_di_hints()
     {
-        var output = ConfigMigrationTools.FindStartupOrder([_root], null);
+        var output = _tools.FindStartupOrder([_root], null);
 
         Assert.Contains("Recommended registration order", output);
         Assert.Contains("must be called before WithActors", output);
@@ -103,7 +106,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void StartupOrder_filter_excludes_files()
     {
-        var output = ConfigMigrationTools.FindStartupOrder([_root], "nomatch");
+        var output = _tools.FindStartupOrder([_root], "nomatch");
 
         Assert.Contains("No ordering comments found", output);
     }
@@ -124,7 +127,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void DiffConfig_against_empty_lists_all_keys_as_added()
     {
-        var current = ConfigMigrationTools.CollectConfig([_root]);
+        var current = _tools.CollectConfig([_root]);
         var diff = ConfigMigrationTools.DiffConfig(new Dictionary<string, string?>(), current);
 
         Assert.Equal(current.Count, diff.Added.Count);
@@ -134,7 +137,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void Changelog_returns_sections()
     {
-        var output = ConfigMigrationTools.FindChangelog([_root], null);
+        var output = _tools.FindChangelog([_root], null);
 
         Assert.Contains("#### 1.5.0", output);
         Assert.Contains("#### 1.4.0", output);
@@ -143,11 +146,11 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void Changelog_filter_limits_entries()
     {
-        var output = ConfigMigrationTools.FindChangelog([_root], "breaking");
+        var output = _tools.FindChangelog([_root], "breaking");
 
         Assert.Contains("1.5.0", output);
         Assert.DoesNotContain("1.4.0", output);
-        Assert.Contains("No changelog entries found", ConfigMigrationTools.FindChangelog([_root], "zzz"));
+        Assert.Contains("No changelog entries found", _tools.FindChangelog([_root], "zzz"));
     }
 
     [Fact]
@@ -157,7 +160,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Directory.CreateDirectory(emptyRoot);
         try
         {
-            var output = ConfigMigrationTools.MapQuery([emptyRoot], "WithClustering");
+            var output = _tools.MapQuery([emptyRoot], "WithClustering");
 
             Assert.Contains("WithClustering", output);
             Assert.Contains("akka.cluster", output);
@@ -172,7 +175,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_regex_takes_precedence_over_fallback()
     {
-        var output = ConfigMigrationTools.MapQuery([_root], "WithClustering");
+        var output = _tools.MapQuery([_root], "WithClustering");
 
         Assert.Contains("akka.cluster.roles", output);
         Assert.DoesNotContain("curated", output);
@@ -185,7 +188,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Directory.CreateDirectory(emptyRoot);
         try
         {
-            var output = ConfigMigrationTools.MapQuery([emptyRoot], "WithZzzNonexistent");
+            var output = _tools.MapQuery([emptyRoot], "WithZzzNonexistent");
 
             Assert.Contains("No HOCON keys found", output);
         }
@@ -198,7 +201,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_merges_regex_and_fallback_keys()
     {
-        var output = ConfigMigrationTools.MapQuery([_root], "WithClustering");
+        var output = _tools.MapQuery([_root], "WithClustering");
 
         Assert.Contains("akka.cluster.roles", output);
         Assert.Contains("akka.cluster", output);
@@ -212,13 +215,13 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Directory.CreateDirectory(emptyRoot);
         try
         {
-            var journal = ConfigMigrationTools.MapQuery([emptyRoot], "WithJournal");
+            var journal = _tools.MapQuery([emptyRoot], "WithJournal");
             Assert.Contains("akka.persistence.journal", journal);
 
-            var snapshot = ConfigMigrationTools.MapQuery([emptyRoot], "WithSnapshotStore");
+            var snapshot = _tools.MapQuery([emptyRoot], "WithSnapshotStore");
             Assert.Contains("akka.persistence.snapshot-store", snapshot);
 
-            var shutdown = ConfigMigrationTools.MapQuery([emptyRoot], "WithCoordinatedShutdown");
+            var shutdown = _tools.MapQuery([emptyRoot], "WithCoordinatedShutdown");
             Assert.Contains("akka.coordinated-shutdown", shutdown);
         }
         finally

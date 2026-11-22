@@ -8,6 +8,8 @@ Cache source roots and parsed type declarations within a session to avoid redund
 
 `GitHubClient.EnsureAllSourcesAsync` SHALL cache its result after the first successful call. Subsequent calls SHALL return the cached list without re-resolving repositories or re-checking the filesystem.
 
+All filesystem operations in `GitHubClient` SHALL use `FileService` instead of direct `System.IO` calls.
+
 #### Scenario: First call fetches and caches
 
 - **WHEN** `EnsureAllSourcesAsync` is called for the first time on a `GitHubClient` instance
@@ -28,10 +30,12 @@ Cache source roots and parsed type declarations within a session to avoid redund
 
 `DeepIntelligenceTools` SHALL cache the result of `ScanTypes` keyed by the set of source root paths. When called with the same set of roots, it SHALL return the cached result without re-reading files.
 
+All file reading in `DeepIntelligenceTools` SHALL use `FileService` instead of direct `System.IO` calls.
+
 #### Scenario: First ScanTypes call parses all files
 
 - **WHEN** `ScanTypes` is called with a set of source roots for the first time
-- **THEN** it SHALL read all `.cs` files, parse type declarations, and return the results
+- **THEN** it SHALL read all `.cs` files via `FileService`, parse type declarations, and return the results
 - **AND** cache the results keyed by the root paths
 
 #### Scenario: Subsequent ScanTypes calls return cached results

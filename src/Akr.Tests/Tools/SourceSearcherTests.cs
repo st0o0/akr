@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,9 +6,11 @@ namespace Akr.Tests.Tools;
 public sealed class SourceSearcherTests : IDisposable
 {
     private readonly string _testRoot;
+    private readonly SourceSearcher _searcher;
 
     public SourceSearcherTests()
     {
+        _searcher = new SourceSearcher(new FileService(new FileSystem()));
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 
@@ -34,7 +37,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Finds_matching_lines()
     {
-        var results = SourceSearcher.Search([_testRoot], "PreStart");
+        var results = _searcher.Search([_testRoot], "PreStart");
 
         Assert.Single(results);
         Assert.Equal("src/Actor.cs", results[0].File);
@@ -44,7 +47,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Returns_context_lines()
     {
-        var results = SourceSearcher.Search([_testRoot], "PreStart");
+        var results = _searcher.Search([_testRoot], "PreStart");
 
         Assert.NotEmpty(results[0].ContextBefore);
         Assert.NotEmpty(results[0].ContextAfter);
@@ -53,7 +56,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Respects_file_pattern()
     {
-        var results = SourceSearcher.Search([_testRoot], "dispatcher", filePattern: "*.conf");
+        var results = _searcher.Search([_testRoot], "dispatcher", filePattern: "*.conf");
 
         Assert.Single(results);
         Assert.Equal("reference.conf", results[0].File);
@@ -62,7 +65,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Respects_max_results()
     {
-        var results = SourceSearcher.Search([_testRoot], @"public", maxResults: 2);
+        var results = _searcher.Search([_testRoot], @"public", maxResults: 2);
 
         Assert.Equal(2, results.Count);
     }
@@ -70,7 +73,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Returns_empty_for_no_match()
     {
-        var results = SourceSearcher.Search([_testRoot], "NonExistentSymbol");
+        var results = _searcher.Search([_testRoot], "NonExistentSymbol");
 
         Assert.Empty(results);
     }
@@ -78,7 +81,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Supports_regex_patterns()
     {
-        var results = SourceSearcher.Search([_testRoot], @"public\s+virtual\s+void");
+        var results = _searcher.Search([_testRoot], @"public\s+virtual\s+void");
 
         Assert.Equal(2, results.Count);
     }

@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Akr.Registry;
+using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Akr.Tests;
@@ -160,7 +161,8 @@ public sealed class GitHubClientTests : IDisposable
     }
 
     private GitHubClient CreateClient(HttpMessageHandler handler) =>
-        new(new HttpClient(handler), NullLogger<GitHubClient>.Instance, _cacheRoot);
+        new(new HttpClient(handler), NullLogger<GitHubClient>.Instance,
+            new FileService(new System.IO.Abstractions.FileSystem()), _cacheRoot);
 
     private static byte[] JsonBody(object obj) =>
         Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj));

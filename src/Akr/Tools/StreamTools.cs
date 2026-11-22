@@ -10,8 +10,17 @@ public sealed record StageInfo(string Name, string Category);
 [McpServerToolType]
 public sealed partial class StreamTools
 {
+    private readonly FileService _fileService;
+    private readonly SourceSearcher _sourceSearcher;
+
+    public StreamTools(FileService fileService, SourceSearcher sourceSearcher)
+    {
+        _fileService = fileService;
+        _sourceSearcher = sourceSearcher;
+    }
+
     [McpServerTool(Name = "search_source"), Description("Search across cached Akka.NET source code using regex patterns.")]
-    public static async Task<string> SearchAsync(
+    public async Task<string> SearchAsync(
         GitHubClient github,
         [Description("Regex pattern to search for")] string query,
         [Description("File glob pattern (default: *.cs)")] string? filePattern = null,
@@ -27,7 +36,7 @@ public sealed partial class StreamTools
         IReadOnlyList<SearchResult> results;
         try
         {
-            results = SourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);
+            results = _sourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);
         }
         catch (RegexParseException ex)
         {
@@ -64,7 +73,7 @@ public sealed partial class StreamTools
     }
 
     [McpServerTool(Name = "stream_stages"), Description("Catalog built-in Akka.Streams stages with shape classification.")]
-    public static async Task<string> ListStagesAsync(
+    public async Task<string> ListStagesAsync(
         GitHubClient github,
         [Description("Optional keyword to filter stages (e.g. fan, merge, broadcast)")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -87,29 +96,20 @@ public sealed partial class StreamTools
         "PushPullStage<",
     ];
 
-    public static IReadOnlyList<StageInfo> FindStages(IEnumerable<string> roots, string? filter = null)
+    public IReadOnlyList<StageInfo> FindStages(IEnumerable<string> roots, string? filter = null)
     {
         var found = new HashSet<StageInfo>();
 
-        foreach (var root in roots)
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            if (!Directory.Exists(root))
+            if (!relative.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+            foreach (var stage in ExtractStages(_fileService.ReadAllText(full)))
             {
-                var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-                if (!relative.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                foreach (var stage in ExtractStages(File.ReadAllText(file)))
-                {
-                    found.Add(stage);
-                }
+                found.Add(stage);
             }
         }
 

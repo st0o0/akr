@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Akr.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -341,7 +342,8 @@ public sealed class GitHubClientCachingTests : IDisposable
     }
 
     private GitHubClient CreateClient(HttpMessageHandler handler) =>
-        new(new HttpClient(handler), NullLogger<GitHubClient>.Instance, _cacheRoot,
+        new(new HttpClient(handler), NullLogger<GitHubClient>.Instance,
+            new FileService(new System.IO.Abstractions.FileSystem()), _cacheRoot,
             cacheTtl: TimeSpan.FromHours(24), timeProvider: _time);
 
     private void WriteTestMetadata(RepoMetadata metadata)

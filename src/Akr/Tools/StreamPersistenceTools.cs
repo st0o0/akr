@@ -14,6 +14,13 @@ public sealed partial class StreamPersistenceTools
 {
     private const string NoSource = "No Akka.NET source available.";
 
+    private readonly FileService _fileService;
+
+    public StreamPersistenceTools(FileService fileService)
+    {
+        _fileService = fileService;
+    }
+
     private static readonly string[] _journalBases = ["AsyncWriteJournal", "WriteJournalBase", "SyncWriteJournal"];
     private static readonly string[] _snapshotBases = ["SnapshotStore"];
     private static readonly string[] _readJournalBases = ["IReadJournalProvider", "ReadJournalBase", "IReadJournal"];
@@ -51,7 +58,7 @@ public sealed partial class StreamPersistenceTools
     private static partial Regex Whitespace();
 
     [McpServerTool(Name = "stage_detail"), Description("Get the full source of a specific Akka.Streams stage by class name.")]
-    public static async Task<string> StageDetailAsync(
+    public async Task<string> StageDetailAsync(
         GitHubClient github,
         [Description("Stage class name (e.g. Merge, Broadcast, Buffer)")] string stage,
         CancellationToken cancellationToken = default)
@@ -61,7 +68,7 @@ public sealed partial class StreamPersistenceTools
     }
 
     [McpServerTool(Name = "graph_dsl_operators"), Description("List GraphDSL builder operators and their signatures from Akka.Streams source.")]
-    public static async Task<string> GraphDslOperatorsAsync(
+    public async Task<string> GraphDslOperatorsAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -70,7 +77,7 @@ public sealed partial class StreamPersistenceTools
     }
 
     [McpServerTool(Name = "stream_attributes"), Description("Catalog configurable Akka.Streams attributes with their defaults.")]
-    public static async Task<string> StreamAttributesAsync(
+    public async Task<string> StreamAttributesAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -79,7 +86,7 @@ public sealed partial class StreamPersistenceTools
     }
 
     [McpServerTool(Name = "journal_plugins"), Description("Catalog Akka.Persistence journal plugins with file paths and config sections.")]
-    public static async Task<string> JournalPluginsAsync(
+    public async Task<string> JournalPluginsAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -88,7 +95,7 @@ public sealed partial class StreamPersistenceTools
     }
 
     [McpServerTool(Name = "snapshot_plugins"), Description("Catalog Akka.Persistence snapshot store plugins with file paths and config sections.")]
-    public static async Task<string> SnapshotPluginsAsync(
+    public async Task<string> SnapshotPluginsAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -97,7 +104,7 @@ public sealed partial class StreamPersistenceTools
     }
 
     [McpServerTool(Name = "persistence_query"), Description("List Akka.Persistence.Query ReadJournal implementations and their supported query types.")]
-    public static async Task<string> PersistenceQueryAsync(
+    public async Task<string> PersistenceQueryAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -106,7 +113,7 @@ public sealed partial class StreamPersistenceTools
     }
 
     [McpServerTool(Name = "event_adapter_chain"), Description("List event adapter implementations and event adapter configuration.")]
-    public static async Task<string> EventAdapterChainAsync(
+    public async Task<string> EventAdapterChainAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -114,9 +121,9 @@ public sealed partial class StreamPersistenceTools
         return roots.Count == 0 ? NoSource : FormatAdapters(roots);
     }
 
-    public static string FormatStageDetail(IReadOnlyList<string> roots, string stage)
+    public string FormatStageDetail(IReadOnlyList<string> roots, string stage)
     {
-        var results = TypeTools.FindType(roots, stage, fullSource: true)
+        var results = TypeTools.FindType(_fileService, roots, stage, fullSource: true)
             .Where(r => r.File.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase) ||
                         r.Source.Contains("namespace Akka.Streams", StringComparison.Ordinal))
             .ToList();
@@ -137,18 +144,18 @@ public sealed partial class StreamPersistenceTools
         return sb.ToString();
     }
 
-    public static string FormatGraphDsl(IReadOnlyList<string> roots)
+    public string FormatGraphDsl(IReadOnlyList<string> roots)
     {
         var sb = new StringBuilder();
         var count = 0;
-        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.cs"))
         {
             if (!file.Relative.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var content = File.ReadAllText(file.Full);
+            var content = _fileService.ReadAllText(file.Full);
             if (!GraphDslClassPattern().IsMatch(content))
             {
                 continue;
@@ -199,13 +206,13 @@ public sealed partial class StreamPersistenceTools
         return count == 0 ? "No GraphDSL operators found in Akka.Streams source." : $"Found {count} GraphDSL operator(s):\n\n{sb}";
     }
 
-    public static string FormatAttributes(IReadOnlyList<string> roots)
+    public string FormatAttributes(IReadOnlyList<string> roots)
     {
         var sb = new StringBuilder();
         var count = 0;
-        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            var content = File.ReadAllText(file.Full);
+            var content = _fileService.ReadAllText(file.Full);
             var attrs = ClassPattern().Matches(content)
                 .Where(m => HasBase(m.Groups["bases"].Value, _attributeBases))
                 .Select(m => m.Groups["name"].Value)
@@ -233,12 +240,12 @@ public sealed partial class StreamPersistenceTools
         return count == 0 ? "No stream attributes found." : $"Found {count} attribute(s):\n\n{sb}";
     }
 
-    public static IReadOnlyList<ClassInfo> FindClasses(IReadOnlyList<string> roots, string[] baseNames)
+    public IReadOnlyList<ClassInfo> FindClasses(IReadOnlyList<string> roots, string[] baseNames)
     {
         var list = new List<ClassInfo>();
-        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            foreach (Match m in ClassPattern().Matches(File.ReadAllText(file.Full)))
+            foreach (Match m in ClassPattern().Matches(_fileService.ReadAllText(file.Full)))
             {
                 var bases = m.Groups["bases"].Value.Trim();
                 if (HasBase(bases, baseNames))
@@ -252,12 +259,12 @@ public sealed partial class StreamPersistenceTools
         return list;
     }
 
-    public static IReadOnlyList<PluginInfo> FindPlugins(IReadOnlyList<string> roots, string[] baseNames, string kind)
+    public IReadOnlyList<PluginInfo> FindPlugins(IReadOnlyList<string> roots, string[] baseNames, string kind)
     {
         var sections = new List<(string Name, string Class)>();
-        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.conf"))
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.conf"))
         {
-            var text = File.ReadAllText(file.Full);
+            var text = _fileService.ReadAllText(file.Full);
             var matches = ConfigSectionPattern().Matches(text);
             for (var i = 0; i < matches.Count; i++)
             {
@@ -304,7 +311,7 @@ public sealed partial class StreamPersistenceTools
         return sb.ToString();
     }
 
-    public static string FormatReadJournals(IReadOnlyList<string> roots)
+    public string FormatReadJournals(IReadOnlyList<string> roots)
     {
         var classes = FindClasses(roots, _readJournalBases);
         if (classes.Count == 0)
@@ -326,7 +333,7 @@ public sealed partial class StreamPersistenceTools
         return sb.ToString();
     }
 
-    public static string FormatAdapters(IReadOnlyList<string> roots)
+    public string FormatAdapters(IReadOnlyList<string> roots)
     {
         var classes = FindClasses(roots, _adapterBases);
         var sb = new StringBuilder();
@@ -342,9 +349,9 @@ public sealed partial class StreamPersistenceTools
             sb.AppendLine();
         }
 
-        foreach (var file in FileEnumerator.EnumerateFiles(roots, "*.conf"))
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.conf"))
         {
-            foreach (Match m in AdapterConfigPattern().Matches(File.ReadAllText(file.Full)))
+            foreach (Match m in AdapterConfigPattern().Matches(_fileService.ReadAllText(file.Full)))
             {
                 sb.AppendLine($"--- {file.Relative} ---");
                 sb.AppendLine(m.Value);

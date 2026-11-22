@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,9 +6,11 @@ namespace Akr.Tests.Tools;
 public sealed class ConfigReferenceToolTests : IDisposable
 {
     private readonly string _testRoot;
+    private readonly HostingTools _tools;
 
     public ConfigReferenceToolTests()
     {
+        _tools = new HostingTools(new FileService(new FileSystem()));
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 
@@ -43,7 +46,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Finds_all_reference_conf_files()
     {
-        var output = HostingTools.FindConfig([_testRoot], null);
+        var output = _tools.FindConfig([_testRoot], null);
 
         Assert.Contains("--- src/core/Akka/reference.conf ---", output);
         Assert.Contains("--- src/core/Akka.Persistence/reference.conf ---", output);
@@ -53,7 +56,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Path_filter_extracts_matching_block_only()
     {
-        var output = HostingTools.FindConfig([_testRoot], "akka.persistence");
+        var output = _tools.FindConfig([_testRoot], "akka.persistence");
 
         Assert.Contains("--- src/core/Akka.Persistence/reference.conf ---", output);
         Assert.DoesNotContain("src/core/Akka/reference.conf", output);
@@ -65,7 +68,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Nested_blocks_are_fully_extracted()
     {
-        var output = HostingTools.FindConfig([_testRoot], "akka.persistence");
+        var output = _tools.FindConfig([_testRoot], "akka.persistence");
 
         Assert.Contains("journal {", output);
         Assert.Contains("snapshot-store {", output);
@@ -96,7 +99,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void No_match_returns_message()
     {
-        Assert.Equal("No config found for path: akka.nothing", HostingTools.FindConfig([_testRoot], "akka.nothing"));
+        Assert.Equal("No config found for path: akka.nothing", _tools.FindConfig([_testRoot], "akka.nothing"));
     }
 
     [Fact]
@@ -105,7 +108,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
         var empty = Path.Combine(_testRoot, "empty");
         Directory.CreateDirectory(empty);
 
-        Assert.Equal("No reference.conf files found.", HostingTools.FindConfig([empty], null));
+        Assert.Equal("No reference.conf files found.", _tools.FindConfig([empty], null));
     }
 
     [Fact]
@@ -124,7 +127,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
                 }
                 """);
 
-            var output = HostingTools.FindConfig([root], "akka.actor.provider");
+            var output = _tools.FindConfig([root], "akka.actor.provider");
             Assert.Contains("provider", output);
             Assert.DoesNotContain("No config found", output);
         }
@@ -177,16 +180,17 @@ public sealed class ConfigReferenceToolTests : IDisposable
                 """);
 
             // Enumerate should find all 4
-            var files = ConfigFiles.EnumerateConfigFiles([root]).Select(f => f.Relative).ToList();
+            var fs = new FileService(new System.IO.Abstractions.FileSystem());
+            var files = fs.EnumerateConfigFiles([root]).Select(f => f.Relative).ToList();
             Assert.Equal(4, files.Count);
 
             // config_reference should find akka.actor.provider
-            var actorConfig = HostingTools.FindConfig([root], "akka.actor.provider");
+            var actorConfig = _tools.FindConfig([root], "akka.actor.provider");
             Assert.Contains("provider", actorConfig);
             Assert.DoesNotContain("No config found", actorConfig);
 
             // config_reference should find akka.cluster
-            var clusterConfig = HostingTools.FindConfig([root], "akka.cluster");
+            var clusterConfig = _tools.FindConfig([root], "akka.cluster");
             Assert.Contains("cluster", clusterConfig);
             Assert.DoesNotContain("No config found", clusterConfig);
         }

@@ -1,52 +1,8 @@
 ## Purpose
 
-Consolidated file enumeration and HOCON comment stripping utilities, replacing duplicate implementations across tool classes.
+Code quality improvements: source-generated regex, deduplicated MSBuild properties, aligned package versions. File enumeration and HOCON comment stripping are now part of FileService (see file-service spec).
 
 ## Requirements
-
-### Requirement: Shared file enumeration utility
-
-The system SHALL provide a single `FileEnumerator.EnumerateFiles` method that all tool classes use to enumerate files across source roots.
-
-#### Scenario: Enumerate files with pattern
-
-- **WHEN** `EnumerateFiles` is called with a list of source roots and a file pattern (e.g. `*.cs`)
-- **THEN** it SHALL return tuples of `(FullPath, RelativePath)` for all matching files across all roots
-- **AND** relative paths SHALL use forward slashes
-
-#### Scenario: Exclude build output directories
-
-- **WHEN** enumerating files across source roots
-- **THEN** files under `/obj/` or `/bin/` directories SHALL be excluded from results
-
-#### Scenario: Skip non-existent roots
-
-- **WHEN** a source root path does not exist on the filesystem
-- **THEN** that root SHALL be skipped without error
-
-#### Scenario: Consistent ordering
-
-- **WHEN** enumerating files
-- **THEN** results SHALL be ordered by relative path within each root
-
-### Requirement: Shared HOCON comment stripping
-
-The system SHALL provide a single `HoconHelper.StripComment` method used by all tools that need to strip HOCON-style comments from lines.
-
-#### Scenario: Strip line comment
-
-- **WHEN** `StripComment` is called with a line containing `#` outside a string
-- **THEN** it SHALL return the portion of the line before the `#`
-
-#### Scenario: Strip double-slash comment
-
-- **WHEN** `StripComment` is called with a line containing `//` outside a string
-- **THEN** it SHALL return the portion of the line before the `//`
-
-#### Scenario: Preserve comments inside strings
-
-- **WHEN** `StripComment` is called with a line where `#` or `//` appears inside double quotes
-- **THEN** it SHALL return the full line unchanged
 
 ### Requirement: Convert static regex to GeneratedRegex
 
@@ -79,9 +35,9 @@ All static `new Regex(...)` fields in `HostingTools`, `StreamTools`, and `Config
 
 ### Requirement: Align Microsoft.Extensions.Hosting version
 
-`Microsoft.Extensions.Hosting` package version SHALL match the target framework generation. For net10.0, the version SHALL be 11.x.
+`Microsoft.Extensions.Hosting` package version SHALL match the target framework generation. For net10.0, the version SHALL be 10.x.
 
 #### Scenario: Package version matches framework
 
 - **WHEN** inspecting `Directory.Packages.props`
-- **THEN** `Microsoft.Extensions.Hosting` version SHALL be in the 11.x range
+- **THEN** `Microsoft.Extensions.Hosting` version SHALL be in the 10.x range

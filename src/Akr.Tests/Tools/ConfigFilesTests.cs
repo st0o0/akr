@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,11 +6,13 @@ namespace Akr.Tests.Tools;
 public sealed class ConfigFilesTests : IDisposable
 {
     private readonly string _testRoot;
+    private readonly FileService _fileService;
 
     public ConfigFilesTests()
     {
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
+        _fileService = new FileService(new FileSystem());
     }
 
     [Fact]
@@ -17,7 +20,7 @@ public sealed class ConfigFilesTests : IDisposable
     {
         WriteFile("src/contrib/Akka.Streams/reference.conf", "akka.stream { }");
 
-        var files = ConfigFiles.EnumerateConfigFiles([_testRoot]).ToList();
+        var files = _fileService.EnumerateConfigFiles([_testRoot]).ToList();
 
         Assert.Single(files);
         Assert.Contains("reference.conf", files[0].Relative);
@@ -30,7 +33,7 @@ public sealed class ConfigFilesTests : IDisposable
         WriteFile("src/core/Akka.Cluster/Configuration/Cluster.conf", "akka { cluster { } }");
         WriteFile("src/core/Akka.Remote/Configuration/Remote.conf", "akka { remote { } }");
 
-        var files = ConfigFiles.EnumerateConfigFiles([_testRoot]).ToList();
+        var files = _fileService.EnumerateConfigFiles([_testRoot]).ToList();
         var relatives = files.Select(f => f.Relative).ToList();
 
         Assert.Equal(3, files.Count);
@@ -44,7 +47,7 @@ public sealed class ConfigFilesTests : IDisposable
     {
         WriteFile("src/core/Akka.Persistence/persistence.conf", "akka { persistence { } }");
 
-        var files = ConfigFiles.EnumerateConfigFiles([_testRoot]).ToList();
+        var files = _fileService.EnumerateConfigFiles([_testRoot]).ToList();
 
         Assert.Single(files);
         Assert.Contains("persistence.conf", files[0].Relative);
@@ -57,7 +60,7 @@ public sealed class ConfigFilesTests : IDisposable
         WriteFile("src/core/Akka.Tests/reference.conf", "test config");
         WriteFile("src/core/Akka.Persistence.Tests/reference.conf", "test config");
 
-        var files = ConfigFiles.EnumerateConfigFiles([_testRoot]).ToList();
+        var files = _fileService.EnumerateConfigFiles([_testRoot]).ToList();
 
         Assert.Single(files);
         Assert.DoesNotContain(files, f => f.Relative.Contains("Tests"));
@@ -69,7 +72,7 @@ public sealed class ConfigFilesTests : IDisposable
         WriteFile("src/core/Akka/Configuration/akka.conf", "akka { }");
         WriteFile("src/examples/ClusterTools/app.conf", "example config");
 
-        var files = ConfigFiles.EnumerateConfigFiles([_testRoot]).ToList();
+        var files = _fileService.EnumerateConfigFiles([_testRoot]).ToList();
 
         Assert.Single(files);
         Assert.DoesNotContain(files, f => f.Relative.Contains("examples"));
@@ -82,7 +85,7 @@ public sealed class ConfigFilesTests : IDisposable
         WriteFile("src/other/app.conf", "not a config");
         WriteFile("resolv.conf", "nameserver 8.8.8.8");
 
-        var files = ConfigFiles.EnumerateConfigFiles([_testRoot]).ToList();
+        var files = _fileService.EnumerateConfigFiles([_testRoot]).ToList();
 
         Assert.Single(files);
         Assert.Contains("akka.conf", files[0].Relative);
@@ -98,7 +101,7 @@ public sealed class ConfigFilesTests : IDisposable
             WriteFile("src/core/Akka/Configuration/akka.conf", "akka { }");
             WriteFile(root2, "some/reference.conf", "ext config");
 
-            var files = ConfigFiles.EnumerateConfigFiles([_testRoot, root2]).ToList();
+            var files = _fileService.EnumerateConfigFiles([_testRoot, root2]).ToList();
 
             Assert.Equal(2, files.Count);
         }

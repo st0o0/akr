@@ -8,8 +8,14 @@ namespace Akr.Tools;
 [McpServerToolType]
 public sealed partial class EcosystemTools
 {
+    private readonly FileService _fileService;
     private const int MaxClassLines = 200;
     private const int MaxMatchesPerCategory = 15;
+
+    public EcosystemTools(FileService fileService)
+    {
+        _fileService = fileService;
+    }
 
     private static readonly string[] _clusterLifecycle =
     [
@@ -71,7 +77,7 @@ public sealed partial class EcosystemTools
     // ---------- serializer_bindings ----------
 
     [McpServerTool(Name = "serializer_bindings"), Description("Show Akka.NET serialization-bindings (type to serializer mapping) from reference.conf files.")]
-    public static async Task<string> SerializerBindingsAsync(
+    public async Task<string> SerializerBindingsAsync(
         GitHubClient github,
         [Description("Optional filter on type or serializer name")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -80,12 +86,12 @@ public sealed partial class EcosystemTools
         return FindSerializerBindings(roots, filter);
     }
 
-    public static string FindSerializerBindings(IEnumerable<string> roots, string? filter = null)
+    public string FindSerializerBindings(IEnumerable<string> roots, string? filter = null)
     {
         var rows = new List<(string File, string Type, string Serializer)>();
-        foreach (var (full, relative) in ConfigFiles.EnumerateConfigFiles(roots))
+        foreach (var (full, relative) in _fileService.EnumerateConfigFiles(roots))
         {
-            var lines = File.ReadAllLines(full);
+            var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
                 if (!BindingsKeyRegex().IsMatch(lines[i]))
@@ -129,7 +135,7 @@ public sealed partial class EcosystemTools
     // ---------- serializer_detail ----------
 
     [McpServerTool(Name = "serializer_detail"), Description("Show source and reference.conf config for Akka.NET serializer classes (Serializer / SerializerWithStringManifest).")]
-    public static async Task<string> SerializerDetailAsync(
+    public async Task<string> SerializerDetailAsync(
         GitHubClient github,
         [Description("Serializer class name or fragment (e.g. Json, Protobuf)")] string name,
         CancellationToken cancellationToken = default)
@@ -138,15 +144,15 @@ public sealed partial class EcosystemTools
         return FindSerializerDetail(roots, name);
     }
 
-    public static string FindSerializerDetail(IEnumerable<string> roots, string name)
+    public string FindSerializerDetail(IEnumerable<string> roots, string name)
     {
         var rootList = roots.ToList();
         var sb = new StringBuilder();
         var classNames = new List<string>();
 
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(rootList, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(rootList, "*.cs"))
         {
-            var lines = File.ReadAllLines(full);
+            var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
                 var m = ClassWithBasesRegex().Match(lines[i]);
@@ -169,9 +175,9 @@ public sealed partial class EcosystemTools
             return $"No serializer class found matching: {name}";
         }
 
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(rootList, "reference.conf"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(rootList, "reference.conf"))
         {
-            var hits = File.ReadAllLines(full)
+            var hits = _fileService.ReadAllLines(full)
                 .Where(l => classNames.Any(c => l.Contains(c, StringComparison.Ordinal)))
                 .Select(l => l.Trim())
                 .ToList();
@@ -201,7 +207,7 @@ public sealed partial class EcosystemTools
     // ---------- serialization_manifest ----------
 
     [McpServerTool(Name = "serialization_manifest"), Description("Find serialization manifest mappings (ISerializationManifest, Manifest methods, manifest constants) in persistence code.")]
-    public static async Task<string> SerializationManifestAsync(
+    public async Task<string> SerializationManifestAsync(
         GitHubClient github,
         [Description("Optional file path filter (default: Persistence)")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -210,20 +216,20 @@ public sealed partial class EcosystemTools
         return FindManifests(roots, filter);
     }
 
-    public static string FindManifests(IEnumerable<string> roots, string? filter = null, int maxResults = 100)
+    public string FindManifests(IEnumerable<string> roots, string? filter = null, int maxResults = 100)
     {
         var pathFilter = string.IsNullOrWhiteSpace(filter) ? "Persistence" : filter;
         var sb = new StringBuilder();
         var count = 0;
 
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
             if (!relative.Contains(pathFilter, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var lines = File.ReadAllLines(full);
+            var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
                 if (!ManifestRegex().IsMatch(lines[i]))
@@ -245,7 +251,7 @@ public sealed partial class EcosystemTools
     // ---------- hosting_di_patterns ----------
 
     [McpServerTool(Name = "hosting_di_patterns"), Description("Catalog of dependency injection patterns in Akka.Hosting source (IRequiredActor, ActorRegistry, Props with DI).")]
-    public static async Task<string> HostingDiPatternsAsync(
+    public async Task<string> HostingDiPatternsAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -253,11 +259,11 @@ public sealed partial class EcosystemTools
         return FindDiPatterns(roots);
     }
 
-    public static string FindDiPatterns(IEnumerable<string> roots)
+    public string FindDiPatterns(IEnumerable<string> roots)
     {
         var buckets = _diCategories.Select(_ => new List<string>()).ToArray();
 
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
             if (!relative.Contains("Hosting", StringComparison.OrdinalIgnoreCase)
                 || relative.Contains("TestKit", StringComparison.OrdinalIgnoreCase)
@@ -266,7 +272,7 @@ public sealed partial class EcosystemTools
                 continue;
             }
 
-            var lines = File.ReadAllLines(full);
+            var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
                 for (var c = 0; c < _diCategories.Length; c++)
@@ -308,7 +314,7 @@ public sealed partial class EcosystemTools
     // ---------- hosting_testkit ----------
 
     [McpServerTool(Name = "hosting_testkit"), Description("Compare Akka.TestKit and Akka.Hosting.TestKit: base classes and assertion methods.")]
-    public static async Task<string> HostingTestKitAsync(
+    public async Task<string> HostingTestKitAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -316,11 +322,11 @@ public sealed partial class EcosystemTools
         return CompareTestKits(roots);
     }
 
-    public static string CompareTestKits(IEnumerable<string> roots)
+    public string CompareTestKits(IEnumerable<string> roots)
     {
         var rows = new List<(string Package, string Class, string Base, string Assertions)>();
 
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
             var package = ClassifyTestKit(relative);
             if (package is null)
@@ -328,7 +334,7 @@ public sealed partial class EcosystemTools
                 continue;
             }
 
-            var text = File.ReadAllText(full);
+            var text = _fileService.ReadAllText(full);
             var assertions = PublicMethodRegex().Matches(text)
                 .Select(m => m.Groups[1].Value)
                 .Where(n => n.StartsWith("Expect", StringComparison.Ordinal)
@@ -381,7 +387,7 @@ public sealed partial class EcosystemTools
     // ---------- testkit_helpers ----------
 
     [McpServerTool(Name = "testkit_helpers"), Description("Catalog public utility and assertion methods in Akka TestKit source, grouped by purpose.")]
-    public static async Task<string> TestKitHelpersAsync(
+    public async Task<string> TestKitHelpersAsync(
         GitHubClient github,
         [Description("Optional method name filter")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -390,19 +396,19 @@ public sealed partial class EcosystemTools
         return FindTestKitHelpers(roots, filter);
     }
 
-    public static string FindTestKitHelpers(IEnumerable<string> roots, string? filter = null)
+    public string FindTestKitHelpers(IEnumerable<string> roots, string? filter = null)
     {
         var groups = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
 
-        foreach (var (full, relative) in FileEnumerator.EnumerateFiles(roots, "*.cs"))
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
             if (ClassifyTestKit(relative) is null)
             {
                 continue;
             }
 
-            var currentType = Path.GetFileNameWithoutExtension(relative);
-            foreach (var line in File.ReadAllLines(full))
+            var currentType = _fileService.GetFileNameWithoutExtension(relative);
+            foreach (var line in _fileService.ReadAllLines(full))
             {
                 var t = PublicTypeRegex().Match(line);
                 if (t.Success)
@@ -470,7 +476,7 @@ public sealed partial class EcosystemTools
     // ---------- cluster_events ----------
 
     [McpServerTool(Name = "cluster_events"), Description("List Akka.Cluster ClusterEvent types ordered by member lifecycle (Joining, Up, Leaving, Exiting, Down, Removed) with XML doc descriptions.")]
-    public static async Task<string> ClusterEventsAsync(
+    public async Task<string> ClusterEventsAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -478,13 +484,13 @@ public sealed partial class EcosystemTools
         return FindClusterEvents(roots);
     }
 
-    public static string FindClusterEvents(IEnumerable<string> roots)
+    public string FindClusterEvents(IEnumerable<string> roots)
     {
         var events = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var (full, _) in FileEnumerator.EnumerateFiles(roots, "ClusterEvent.cs"))
+        foreach (var (full, _) in _fileService.EnumerateFiles(roots, "ClusterEvent.cs"))
         {
-            var lines = File.ReadAllLines(full);
+            var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
                 var m = PublicTypeRegex().Match(lines[i]);
@@ -540,7 +546,7 @@ public sealed partial class EcosystemTools
     // ---------- extension_points ----------
 
     [McpServerTool(Name = "extension_points"), Description("Catalog Akka.NET provider/plugin/extension interfaces (I*Provider, I*Plugin, I*Extension) with implementors.")]
-    public static async Task<string> ExtensionPointsAsync(
+    public async Task<string> ExtensionPointsAsync(
         GitHubClient github,
         CancellationToken cancellationToken = default)
     {
@@ -548,11 +554,11 @@ public sealed partial class EcosystemTools
         return FindExtensionPoints(roots);
     }
 
-    public static string FindExtensionPoints(IEnumerable<string> roots)
+    public string FindExtensionPoints(IEnumerable<string> roots)
     {
-        var files = FileEnumerator.EnumerateFiles(roots, "*.cs")
+        var files = _fileService.EnumerateFiles(roots, "*.cs")
             .Where(f => !f.Relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
-            .Select(f => (f.Relative, Lines: File.ReadAllLines(f.Full)))
+            .Select(f => (f.Relative, Lines: _fileService.ReadAllLines(f.Full)))
             .ToList();
 
         var interfaces = new SortedDictionary<string, (string File, string Doc)>(StringComparer.Ordinal);
@@ -615,7 +621,7 @@ public sealed partial class EcosystemTools
     // ---------- dependency_graph ----------
 
     [McpServerTool(Name = "dependency_graph"), Description("Build an Akka package dependency map from .csproj ProjectReference and PackageReference entries.")]
-    public static async Task<string> DependencyGraphAsync(
+    public async Task<string> DependencyGraphAsync(
         GitHubClient github,
         [Description("Optional project name filter (e.g. Akka.Cluster)")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -624,13 +630,13 @@ public sealed partial class EcosystemTools
         return BuildDependencyGraph(roots, filter);
     }
 
-    public static string BuildDependencyGraph(IEnumerable<string> roots, string? filter = null)
+    public string BuildDependencyGraph(IEnumerable<string> roots, string? filter = null)
     {
         var graph = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
 
-        foreach (var (full, _) in FileEnumerator.EnumerateFiles(roots, "*.csproj"))
+        foreach (var (full, _) in _fileService.EnumerateFiles(roots, "*.csproj"))
         {
-            var project = Path.GetFileNameWithoutExtension(full);
+            var project = _fileService.GetFileNameWithoutExtension(full);
             if (!project.StartsWith("Akka", StringComparison.Ordinal))
             {
                 continue;
@@ -641,11 +647,11 @@ public sealed partial class EcosystemTools
                 graph[project] = deps = new SortedSet<string>(StringComparer.Ordinal);
             }
 
-            foreach (Match m in ReferenceRegex().Matches(File.ReadAllText(full)))
+            foreach (Match m in ReferenceRegex().Matches(_fileService.ReadAllText(full)))
             {
                 var isProject = m.Groups[1].Value == "ProjectReference";
                 var name = isProject
-                    ? Path.GetFileNameWithoutExtension(m.Groups[2].Value.Replace('\\', '/'))
+                    ? _fileService.GetFileNameWithoutExtension(m.Groups[2].Value.Replace('\\', '/'))
                     : m.Groups[2].Value;
 
                 if (name.StartsWith("Akka", StringComparison.Ordinal))

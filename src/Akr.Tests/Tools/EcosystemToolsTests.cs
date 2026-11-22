@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -5,9 +6,11 @@ namespace Akr.Tests.Tools;
 public sealed class EcosystemToolsTests : IDisposable
 {
     private readonly string _root;
+    private readonly EcosystemTools _tools;
 
     public EcosystemToolsTests()
     {
+        _tools = new EcosystemTools(new FileService(new FileSystem()));
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 
@@ -112,7 +115,7 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void Bindings_parses_table()
     {
-        var output = EcosystemTools.FindSerializerBindings([_root]);
+        var output = _tools.FindSerializerBindings([_root]);
 
         Assert.Contains("| System.Object | json |", output);
         Assert.Contains("| Akka.Actor.Foo | hyperion |", output);
@@ -121,14 +124,14 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void Bindings_filter_and_empty()
     {
-        Assert.DoesNotContain("System.Object", EcosystemTools.FindSerializerBindings([_root], "hyperion"));
-        Assert.Equal("No serialization bindings found.", EcosystemTools.FindSerializerBindings([_root], "zzz"));
+        Assert.DoesNotContain("System.Object", _tools.FindSerializerBindings([_root], "hyperion"));
+        Assert.Equal("No serialization bindings found.", _tools.FindSerializerBindings([_root], "zzz"));
     }
 
     [Fact]
     public void Detail_returns_source_and_config()
     {
-        var output = EcosystemTools.FindSerializerDetail([_root], "Json");
+        var output = _tools.FindSerializerDetail([_root], "Json");
 
         Assert.Contains("class NewtonSoftJsonSerializer : Serializer", output);
         Assert.Contains("ToBinary", output);
@@ -140,13 +143,13 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void Detail_reports_missing()
     {
-        Assert.Contains("No serializer class found", EcosystemTools.FindSerializerDetail([_root], "Nope"));
+        Assert.Contains("No serializer class found", _tools.FindSerializerDetail([_root], "Nope"));
     }
 
     [Fact]
     public void Manifest_finds_patterns_in_persistence_only()
     {
-        var output = EcosystemTools.FindManifests([_root]);
+        var output = _tools.FindManifests([_root]);
 
         Assert.Contains("PersistentManifest", output);
         Assert.Contains("SerializerWithStringManifest", output);
@@ -156,13 +159,13 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void Manifest_reports_none()
     {
-        Assert.Equal("No serialization manifest patterns found.", EcosystemTools.FindManifests([_root], "Cluster"));
+        Assert.Equal("No serialization manifest patterns found.", _tools.FindManifests([_root], "Cluster"));
     }
 
     [Fact]
     public void DiPatterns_catalogs_categories()
     {
-        var output = EcosystemTools.FindDiPatterns([_root]);
+        var output = _tools.FindDiPatterns([_root]);
 
         Assert.Contains("## Resolve actors via DI", output);
         Assert.Contains("## ActorRegistry", output);
@@ -174,13 +177,13 @@ public sealed class EcosystemToolsTests : IDisposable
     public void DiPatterns_reports_none()
     {
         var empty = Path.Combine(_root, "src", "Akka.Cluster");
-        Assert.Equal("No Akka.Hosting DI patterns found.", EcosystemTools.FindDiPatterns([empty]));
+        Assert.Equal("No Akka.Hosting DI patterns found.", _tools.FindDiPatterns([empty]));
     }
 
     [Fact]
     public void TestKit_comparison_lists_both_packages()
     {
-        var output = EcosystemTools.CompareTestKits([_root]);
+        var output = _tools.CompareTestKits([_root]);
 
         Assert.Contains("| Akka.TestKit | TestKitBase | ITestKit |", output);
         Assert.Contains("ExpectMsg", output);
@@ -190,13 +193,13 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void TestKit_comparison_reports_none()
     {
-        Assert.Equal("No TestKit classes found.", EcosystemTools.CompareTestKits([Path.Combine(_root, "src", "Akka.Cluster")]));
+        Assert.Equal("No TestKit classes found.", _tools.CompareTestKits([Path.Combine(_root, "src", "Akka.Cluster")]));
     }
 
     [Fact]
     public void TestKitHelpers_groups_methods()
     {
-        var output = EcosystemTools.FindTestKitHelpers([_root]);
+        var output = _tools.FindTestKitHelpers([_root]);
 
         Assert.Contains("## Expect (message assertions)", output);
         Assert.Contains("TestKitBase.ExpectMsg", output);
@@ -207,7 +210,7 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void TestKitHelpers_filter()
     {
-        var output = EcosystemTools.FindTestKitHelpers([_root], "Within");
+        var output = _tools.FindTestKitHelpers([_root], "Within");
 
         Assert.Contains("Within", output);
         Assert.DoesNotContain("ExpectMsg", output);
@@ -216,7 +219,7 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void ClusterEvents_ordered_by_lifecycle_with_docs()
     {
-        var output = EcosystemTools.FindClusterEvents([_root]);
+        var output = _tools.FindClusterEvents([_root]);
 
         var joined = output.IndexOf("MemberJoined [Joining]", StringComparison.Ordinal);
         var up = output.IndexOf("MemberUp [Up]", StringComparison.Ordinal);
@@ -231,13 +234,13 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void ClusterEvents_reports_none()
     {
-        Assert.Equal("No cluster events found.", EcosystemTools.FindClusterEvents([Path.Combine(_root, "src", "Akka")]));
+        Assert.Equal("No cluster events found.", _tools.FindClusterEvents([Path.Combine(_root, "src", "Akka")]));
     }
 
     [Fact]
     public void ExtensionPoints_finds_interfaces_and_implementors()
     {
-        var output = EcosystemTools.FindExtensionPoints([_root]);
+        var output = _tools.FindExtensionPoints([_root]);
 
         Assert.Contains("IThingProvider (src/Akka/IThingProvider.cs)", output);
         Assert.Contains("Provides things.", output);
@@ -249,13 +252,13 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void ExtensionPoints_reports_none()
     {
-        Assert.Equal("No extension point interfaces found.", EcosystemTools.FindExtensionPoints([Path.Combine(_root, "src", "Akka.Cluster")]));
+        Assert.Equal("No extension point interfaces found.", _tools.FindExtensionPoints([Path.Combine(_root, "src", "Akka.Cluster")]));
     }
 
     [Fact]
     public void DependencyGraph_builds_tree()
     {
-        var output = EcosystemTools.BuildDependencyGraph([_root]);
+        var output = _tools.BuildDependencyGraph([_root]);
 
         Assert.Contains("Akka.Cluster", output);
         Assert.Contains("+-- Akka.Remote (project)", output);
@@ -266,11 +269,11 @@ public sealed class EcosystemToolsTests : IDisposable
     [Fact]
     public void DependencyGraph_filter()
     {
-        var output = EcosystemTools.BuildDependencyGraph([_root], "Remote");
+        var output = _tools.BuildDependencyGraph([_root], "Remote");
 
         Assert.StartsWith("Akka.Remote", output);
         Assert.DoesNotContain("Akka.Cluster", output);
-        Assert.Contains("No Akka projects found matching: zzz", EcosystemTools.BuildDependencyGraph([_root], "zzz"));
+        Assert.Contains("No Akka projects found matching: zzz", _tools.BuildDependencyGraph([_root], "zzz"));
     }
 
     private void WriteFile(string relativePath, string content)

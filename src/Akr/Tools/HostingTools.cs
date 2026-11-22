@@ -10,8 +10,15 @@ public sealed record ExtensionFileResult(string File, IReadOnlyList<string> Sign
 [McpServerToolType]
 public sealed partial class HostingTools
 {
+    private readonly FileService _fileService;
+
+    public HostingTools(FileService fileService)
+    {
+        _fileService = fileService;
+    }
+
     [McpServerTool(Name = "hosting_extensions"), Description("Search for With*/Add* extension methods in Akka.Hosting source.")]
-    public static async Task<string> SearchExtensionsAsync(
+    public async Task<string> SearchExtensionsAsync(
         GitHubClient github,
         [Description("Optional keyword to filter by file path (e.g. Persistence, Cluster)")] string? filter = null,
         CancellationToken cancellationToken = default)
@@ -45,7 +52,7 @@ public sealed partial class HostingTools
     }
 
     [McpServerTool(Name = "config_reference"), Description("Look up HOCON config defaults from Akka.NET reference.conf files.")]
-    public static async Task<string> LookupConfigAsync(
+    public async Task<string> LookupConfigAsync(
         GitHubClient github,
         [Description("HOCON path to filter (e.g. akka.persistence, akka.remote). Omit for all config.")] string? path = null,
         CancellationToken cancellationToken = default)
@@ -54,12 +61,12 @@ public sealed partial class HostingTools
         return FindConfig(roots, path);
     }
 
-    public static string FindConfig(IEnumerable<string> roots, string? path)
+    public string FindConfig(IEnumerable<string> roots, string? path)
     {
         var sb = new StringBuilder();
         var hasPath = !string.IsNullOrWhiteSpace(path);
 
-        var files = ConfigFiles.EnumerateConfigFiles(roots)
+        var files = _fileService.EnumerateConfigFiles(roots)
             .OrderBy(f => f.Relative, StringComparer.Ordinal);
 
         foreach (var (full, relative) in files)
@@ -67,7 +74,7 @@ public sealed partial class HostingTools
             string content;
             if (hasPath)
             {
-                var block = ExtractHoconBlock(File.ReadAllLines(full), path!);
+                var block = ExtractHoconBlock(_fileService.ReadAllLines(full), path!);
                 if (block is null)
                 {
                     continue;
@@ -77,7 +84,7 @@ public sealed partial class HostingTools
             }
             else
             {
-                content = File.ReadAllText(full).TrimEnd();
+                content = _fileService.ReadAllText(full).TrimEnd();
             }
 
             sb.AppendLine($"--- {relative} ---");
@@ -98,30 +105,21 @@ public sealed partial class HostingTools
     [GeneratedRegex(@"public\s+static\s+\S+\s+(With|Add)\w+\s*[\(<]", RegexOptions.NonBacktracking)]
     private static partial Regex MethodPattern();
 
-    public static IReadOnlyList<ExtensionFileResult> FindExtensions(IEnumerable<string> roots, string? filter = null)
+    public IReadOnlyList<ExtensionFileResult> FindExtensions(IEnumerable<string> roots, string? filter = null)
     {
         var results = new List<ExtensionFileResult>();
 
-        foreach (var root in roots)
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            if (!Directory.Exists(root))
+            if (!string.IsNullOrEmpty(filter) && !relative.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+            var signatures = ExtractSignatures(_fileService.ReadAllLines(full));
+            if (signatures.Count > 0)
             {
-                var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-                if (!string.IsNullOrEmpty(filter) && !relative.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var signatures = ExtractSignatures(File.ReadAllLines(file));
-                if (signatures.Count > 0)
-                {
-                    results.Add(new ExtensionFileResult(relative, signatures));
-                }
+                results.Add(new ExtensionFileResult(relative, signatures));
             }
         }
 
@@ -248,7 +246,7 @@ public sealed partial class HostingTools
         for (var i = keyLine; i < lines.Count; i++)
         {
             collected.Add(lines[i]);
-            foreach (var c in HoconHelper.StripComment(lines[i]))
+            foreach (var c in FileService.StripHoconComment(lines[i]))
             {
                 if (c == '{')
                 {
