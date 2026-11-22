@@ -7,7 +7,11 @@ public sealed class RepoRegistryTests
     [Theory]
     [InlineData("Akka", "akkadotnet/akka.net", "src/core/Akka")]
     [InlineData("Akka.Remote", "akkadotnet/akka.net", "src/core/Akka.Remote")]
-    [InlineData("Akka.Hosting", "akkadotnet/Akka.Hosting", "src/Akka.Hosting")]
+    [InlineData("Akka.Hosting", "akkadotnet/akka.net", "src/contrib/hosting/Akka.Hosting")]
+    [InlineData("Akka.Persistence.Embedded.Hosting", "akkadotnet/akka.net", "src/contrib/hosting/Akka.Persistence.Embedded.Hosting")]
+    [InlineData("Akka.Hosting.TestKit.Xunit2", "akkadotnet/akka.net", "src/contrib/hosting/Akka.Hosting.TestKit.Xunit2")]
+    [InlineData("Akka.Reminders", "akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders")]
+    [InlineData("Akka.Reminders.Sql", "akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders.Sql")]
     [InlineData("Akka.Management", "akkadotnet/Akka.Management", "src/management/Akka.Management")]
     [InlineData("Akka.Persistence.Sql", "akkadotnet/Akka.Persistence.Sql", "src/Akka.Persistence.Sql")]
     [InlineData("Akka.Persistence.MongoDb", "akkadotnet/Akka.Persistence.MongoDB", "src/Akka.Persistence.MongoDb")]
@@ -26,7 +30,7 @@ public sealed class RepoRegistryTests
         var entry = RepoRegistry.GetEntry("akka.hosting");
 
         Assert.NotNull(entry);
-        Assert.Equal("akkadotnet/Akka.Hosting", entry.Repo);
+        Assert.Equal("akkadotnet/akka.net", entry.Repo);
     }
 
     [Fact]
@@ -36,13 +40,12 @@ public sealed class RepoRegistryTests
     }
 
     [Fact]
-    public void GetAllRepos_returns_all_five_repos()
+    public void GetAllRepos_returns_all_four_repos()
     {
         var repos = RepoRegistry.GetAllRepos();
 
-        Assert.Equal(5, repos.Count);
+        Assert.Equal(4, repos.Count);
         Assert.Contains("akkadotnet/akka.net", repos);
-        Assert.Contains("akkadotnet/Akka.Hosting", repos);
         Assert.Contains("akkadotnet/Akka.Management", repos);
         Assert.Contains("akkadotnet/Akka.Persistence.Sql", repos);
         Assert.Contains("akkadotnet/Akka.Persistence.MongoDB", repos);

@@ -17,12 +17,21 @@ public static class RepoRegistry
         ["Akka.Discovery"] = new("akkadotnet/akka.net", "src/core/Akka.Discovery"),
         ["Akka.TestKit"] = new("akkadotnet/akka.net", "src/core/Akka.TestKit"),
 
-        // akkadotnet/Akka.Hosting (archived, read-only)
-        ["Akka.Hosting"] = new("akkadotnet/Akka.Hosting", "src/Akka.Hosting"),
-        ["Akka.Hosting.TestKit"] = new("akkadotnet/Akka.Hosting", "src/Akka.Hosting.TestKit"),
-        ["Akka.Cluster.Hosting"] = new("akkadotnet/Akka.Hosting", "src/Akka.Cluster.Hosting"),
-        ["Akka.Remote.Hosting"] = new("akkadotnet/Akka.Hosting", "src/Akka.Remote.Hosting"),
-        ["Akka.Persistence.Hosting"] = new("akkadotnet/Akka.Hosting", "src/Akka.Persistence.Hosting"),
+        // akkadotnet/akka.net (hosting — merged from archived Akka.Hosting repo)
+        ["Akka.Hosting"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Hosting"),
+        ["Akka.Hosting.TestKit"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Hosting.TestKit"),
+        ["Akka.Hosting.TestKit.Xunit2"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Hosting.TestKit.Xunit2"),
+        ["Akka.Cluster.Hosting"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Cluster.Hosting"),
+        ["Akka.Remote.Hosting"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Remote.Hosting"),
+        ["Akka.Persistence.Hosting"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Persistence.Hosting"),
+        ["Akka.Persistence.Embedded.Hosting"] = new("akkadotnet/akka.net", "src/contrib/hosting/Akka.Persistence.Embedded.Hosting"),
+
+        // akkadotnet/akka.net (reminders)
+        ["Akka.Reminders"] = new("akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders"),
+        ["Akka.Reminders.Sql"] = new("akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders.Sql"),
+        ["Akka.Reminders.SqlServer"] = new("akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders.SqlServer"),
+        ["Akka.Reminders.PostgreSql"] = new("akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders.PostgreSql"),
+        ["Akka.Reminders.Sqlite"] = new("akkadotnet/akka.net", "src/contrib/reminders/Akka.Reminders.Sqlite"),
 
         // akkadotnet/Akka.Management (nested layout)
         ["Akka.Management"] = new("akkadotnet/Akka.Management", "src/management/Akka.Management"),

@@ -20,10 +20,25 @@ ecosystem repositories listed in the project's IDEA.md.
 - **WHEN** looking up packages `Akka`, `Akka.Remote`, `Akka.Cluster`, `Akka.Streams`, `Akka.Persistence`
 - **THEN** all SHALL resolve to repo `akkadotnet/akka.net` with their respective source paths within that repo
 
-#### Scenario: Independent repos
+#### Scenario: Hosting packages in mono-repo
 
 - **WHEN** looking up `Akka.Hosting`
-- **THEN** the registry SHALL return repo `akkadotnet/Akka.Hosting` with its source path
+- **THEN** the registry SHALL return repo `akkadotnet/akka.net` with source path `src/contrib/hosting/Akka.Hosting`
+
+#### Scenario: All Hosting packages resolve to mono-repo
+
+- **WHEN** looking up packages `Akka.Hosting`, `Akka.Hosting.TestKit`, `Akka.Hosting.TestKit.Xunit2`, `Akka.Cluster.Hosting`, `Akka.Remote.Hosting`, `Akka.Persistence.Hosting`, `Akka.Persistence.Embedded.Hosting`
+- **THEN** all SHALL resolve to repo `akkadotnet/akka.net` with paths under `src/contrib/hosting/`
+
+#### Scenario: Reminders packages in mono-repo
+
+- **WHEN** looking up packages `Akka.Reminders`, `Akka.Reminders.Sql`, `Akka.Reminders.SqlServer`, `Akka.Reminders.PostgreSql`, `Akka.Reminders.Sqlite`
+- **THEN** all SHALL resolve to repo `akkadotnet/akka.net` with paths under `src/contrib/reminders/`
+
+#### Scenario: Independent repos
+
+- **WHEN** looking up `Akka.Management`
+- **THEN** the registry SHALL return repo `akkadotnet/Akka.Management` with its source path
 
 #### Scenario: Unknown package
 
@@ -41,16 +56,20 @@ use the pattern `{version}` (unprefixed). Legacy releases used `v{version}`.
 - **THEN** the system SHALL try `1.5.30` first
 - **AND** fall back to `v1.5.30` if the first tag does not exist
 
-### Requirement: Registry covers all 5 ecosystem repos
+### Requirement: Registry covers all 4 ecosystem repos
 
 The registry SHALL include entries for packages from:
-- `akkadotnet/akka.net` (Akka, Akka.Remote, Akka.Cluster, Akka.Streams, Akka.Persistence, Akka.TestKit)
-- `akkadotnet/Akka.Hosting` (Akka.Hosting, Akka.Hosting.TestKit)
-- `akkadotnet/Akka.Management` (Akka.Management, Akka.Cluster.Bootstrap)
+- `akkadotnet/akka.net` (core, hosting, reminders)
+- `akkadotnet/Akka.Management` (Akka.Management, discovery plugins)
 - `akkadotnet/Akka.Persistence.Sql`
 - `akkadotnet/Akka.Persistence.MongoDB`
 
 #### Scenario: All repos represented
 
 - **WHEN** enumerating all registry entries
-- **THEN** at least one package SHALL map to each of the 5 repos listed above
+- **THEN** at least one package SHALL map to each of the 4 repos listed above
+
+#### Scenario: No entries for archived repos
+
+- **WHEN** enumerating all registry entries
+- **THEN** no package SHALL map to `akkadotnet/Akka.Hosting` (archived)
