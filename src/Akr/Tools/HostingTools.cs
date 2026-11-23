@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Analysis;
 using Akr.Models;
 using ModelContextProtocol.Server;
 
@@ -245,7 +246,7 @@ public sealed partial class HostingTools
         for (var i = keyLine; i < lines.Count; i++)
         {
             collected.Add(lines[i]);
-            foreach (var c in FileService.StripHoconComment(lines[i]))
+            foreach (var c in HoconParser.StripComment(lines[i]))
             {
                 if (c == '{')
                 {

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Analysis;
 using Akr.Models;
 using ModelContextProtocol.Server;
 
@@ -124,7 +125,7 @@ public sealed partial class ConfigMigrationTools
 
         foreach (var raw in lines)
         {
-            var line = FileService.StripHoconComment(raw).Trim();
+            var line = HoconParser.StripComment(raw).Trim();
             if (line.Length == 0)
             {
                 continue;
