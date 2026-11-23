@@ -1,13 +1,10 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Models;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
-
-public sealed record ClassInfo(string Name, string File, string Bases, bool IsAbstract);
-
-public sealed record PluginInfo(string Name, string File, string Section);
 
 [McpServerToolType]
 public sealed partial class StreamPersistenceTools

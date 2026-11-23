@@ -1,16 +1,10 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Models;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
-
-public sealed record ConfigEntry(string Path, string? Value);
-
-public sealed record ConfigDiffResult(
-    IReadOnlyList<string> Added,
-    IReadOnlyList<string> Removed,
-    IReadOnlyList<string> Changed);
 
 [McpServerToolType]
 public sealed partial class ConfigMigrationTools

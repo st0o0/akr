@@ -1,11 +1,10 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Models;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
-
-public sealed record MemberInfo(string Kind, string Signature);
 
 [McpServerToolType]
 public sealed partial class TypeTools

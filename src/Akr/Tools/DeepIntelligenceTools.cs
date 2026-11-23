@@ -1,27 +1,10 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Models;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
-
-public sealed record SourceFile(string Path, string Content);
-
-public sealed record TypeDecl(
-    string Name,
-    string Kind,
-    string Namespace,
-    IReadOnlyList<string> Bases,
-    SourceFile Source,
-    int Index);
-
-public sealed record SupervisionInfo(
-    string Type,
-    string Kind,
-    string Strategy,
-    IReadOnlyList<string> Directives,
-    string File,
-    int Line);
 
 [McpServerToolType]
 public sealed partial class DeepIntelligenceTools

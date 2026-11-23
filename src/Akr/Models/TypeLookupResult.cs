@@ -1,4 +1,4 @@
-namespace Akr.Tools;
+namespace Akr.Models;
 
 public sealed record TypeLookupResult(
     string File,

@@ -1,11 +1,10 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Models;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
-
-public sealed record ExtensionFileResult(string File, IReadOnlyList<string> Signatures);
 
 [McpServerToolType]
 public sealed partial class HostingTools
