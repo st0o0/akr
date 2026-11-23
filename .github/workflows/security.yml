@@ -16,3 +16,5 @@ permissions:
 jobs:
   security:
     uses: st0o0/github-workflows/.github/workflows/security.yml@main
+    with:
+      scan-type: fs
