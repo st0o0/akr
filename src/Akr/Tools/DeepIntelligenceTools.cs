@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -30,7 +29,7 @@ public sealed partial class DeepIntelligenceTools
     private const string NoSource = "No Akka.NET source available.";
     private const int MaxWindowLines = 25;
 
-    private static readonly ConcurrentDictionary<string, List<TypeDecl>> _scanCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<TypeDecl>> _scanCache = new(StringComparer.Ordinal);
 
     private static readonly string[] _lifecycle = ["PreStart", "PreRestart", "PostRestart", "PostStop", "AroundReceive", "Receive"];
     private static readonly string[] _requestSuffixes = ["Command", "Query"];

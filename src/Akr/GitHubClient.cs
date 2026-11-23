@@ -238,7 +238,7 @@ public sealed class GitHubClient
 
         if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
         {
-            throw new SourceFetchException($"GitHub rate limit hit for repo '{repo}'. Try again later or set GITHUB_TOKEN.");
+            throw new SourceFetchException($"GitHub rate limit hit for repo '{repo}'. Try again later or increase AKR_CACHE_TTL_HOURS.");
         }
 
         if (!response.IsSuccessStatusCode)

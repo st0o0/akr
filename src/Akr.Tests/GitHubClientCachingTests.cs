@@ -1,11 +1,8 @@
-using System.Formats.Tar;
-using System.IO.Compression;
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using Akr.Tools;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using static Akr.Tests.TestHelpers;
 
 namespace Akr.Tests;
 
@@ -352,28 +349,6 @@ public sealed class GitHubClientCachingTests : IDisposable
         Directory.CreateDirectory(metaDir);
         var json = JsonSerializer.SerializeToUtf8Bytes(metadata, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllBytes(Path.Combine(metaDir, $"{RepoName}.json"), json);
-    }
-
-    private static byte[] JsonBody(object obj) =>
-        Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj));
-
-    private static byte[] CreateTestTarGz(string prefix, (string path, string content)[] files)
-    {
-        using var memoryStream = new MemoryStream();
-        using (var gzipStream = new GZipStream(memoryStream, CompressionLevel.Fastest, leaveOpen: true))
-        using (var tarWriter = new TarWriter(gzipStream, leaveOpen: true))
-        {
-            foreach (var (path, content) in files)
-            {
-                var entry = new PaxTarEntry(TarEntryType.RegularFile, path)
-                {
-                    DataStream = new MemoryStream(Encoding.UTF8.GetBytes(content))
-                };
-                tarWriter.WriteEntry(entry);
-            }
-        }
-
-        return memoryStream.ToArray();
     }
 
     private sealed class CachingFakeHandler(

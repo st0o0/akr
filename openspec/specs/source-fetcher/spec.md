@@ -43,21 +43,6 @@ The cache directory SHALL be created if it does not exist.
 - **THEN** the system SHALL NOT re-download or re-extract it
 - **AND** SHALL return the existing cache path
 
-### Requirement: Support authenticated requests
-
-The system SHALL use the `GITHUB_TOKEN` environment variable for authenticated GitHub API
-requests when available. Without a token, requests SHALL be unauthenticated.
-
-#### Scenario: Authenticated request increases rate limit
-
-- **WHEN** `GITHUB_TOKEN` is set
-- **THEN** HTTP requests to GitHub SHALL include the `Authorization: Bearer {token}` header
-
-#### Scenario: Unauthenticated fallback
-
-- **WHEN** `GITHUB_TOKEN` is not set
-- **THEN** HTTP requests SHALL proceed without authentication (60 req/hour limit)
-
 ### Requirement: Resolve latest version
 
 The system SHALL resolve the latest release version for a repository by first checking

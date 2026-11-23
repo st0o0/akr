@@ -1,11 +1,8 @@
-using System.Formats.Tar;
-using System.IO.Compression;
 using System.Net;
-using System.Text;
-using System.Text.Json;
 using Akr.Registry;
 using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
+using static Akr.Tests.TestHelpers;
 
 namespace Akr.Tests;
 
@@ -163,28 +160,6 @@ public sealed class GitHubClientTests : IDisposable
     private GitHubClient CreateClient(HttpMessageHandler handler) =>
         new(new HttpClient(handler), NullLogger<GitHubClient>.Instance,
             new FileService(new System.IO.Abstractions.FileSystem()), _cacheRoot);
-
-    private static byte[] JsonBody(object obj) =>
-        Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj));
-
-    private static byte[] CreateTestTarGz(string prefix, (string path, string content)[] files)
-    {
-        using var memoryStream = new MemoryStream();
-        using (var gzipStream = new GZipStream(memoryStream, CompressionLevel.Fastest, leaveOpen: true))
-        using (var tarWriter = new TarWriter(gzipStream, leaveOpen: true))
-        {
-            foreach (var (path, content) in files)
-            {
-                var entry = new PaxTarEntry(TarEntryType.RegularFile, path)
-                {
-                    DataStream = new MemoryStream(Encoding.UTF8.GetBytes(content))
-                };
-                tarWriter.WriteEntry(entry);
-            }
-        }
-
-        return memoryStream.ToArray();
-    }
 
     private sealed class FakeHandler(Func<HttpRequestMessage, (HttpStatusCode Status, byte[] Body)> handler)
         : HttpMessageHandler

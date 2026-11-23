@@ -12,10 +12,12 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton<IFileSystem>(new FileSystem());
         services.AddSingleton<FileService>();
         services.AddSingleton<SourceSearcher>();
+        services.AddSingleton<DeepIntelligenceTools>();
 
         services.AddHttpClient<GitHubClient>(client =>
         {
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("akr/0.1");
+            var version = typeof(McpSetup).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{version}");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         });
 
