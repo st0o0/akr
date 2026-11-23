@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Analysis;
 using Akr.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Terp.Hosting;
@@ -12,6 +13,7 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton<IFileSystem>(new FileSystem());
         services.AddSingleton<FileService>();
         services.AddSingleton<SourceSearcher>();
+        services.AddSingleton<TypeScanner>();
         services.AddSingleton<DeepIntelligenceTools>();
 
         services.AddHttpClient<GitHubClient>(client =>

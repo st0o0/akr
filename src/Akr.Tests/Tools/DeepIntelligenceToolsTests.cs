@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Analysis;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -14,7 +15,8 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
         _roots = [_testRoot];
-        _tools = new DeepIntelligenceTools(new FileService(new FileSystem()));
+        var fileService = new FileService(new FileSystem());
+        _tools = new DeepIntelligenceTools(fileService, new TypeScanner(fileService));
 
         WriteFile("Actor/ActorBase.cs", """
             namespace Akka.Actor;
