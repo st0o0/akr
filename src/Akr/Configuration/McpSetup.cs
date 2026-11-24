@@ -15,6 +15,12 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton<SourceSearcher>();
         services.AddSingleton<TypeScanner>();
         services.AddSingleton<DeepIntelligenceTools>();
+        services.AddSingleton<ProjectScanner>();
+        services.AddSingleton(TimeProvider.System);
+
+        services.Configure<AkrOptions>(AkrOptions.BindFromEnvironment());
+
+        services.AddHostedService<ProjectContextInitializer>();
 
         services.AddHttpClient<GitHubClient>(client =>
         {
@@ -24,7 +30,14 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         });
 
         services
-            .AddMcpServer()
+            .AddMcpServer(options =>
+            {
+                options.ServerInstructions =
+                    "akr provides Akka.NET source intelligence. It auto-detects the Akka.NET version from your project's NuGet references. " +
+                    "If working in a .NET project directory, akr will automatically use the referenced Akka version. " +
+                    "Use the set_project_context tool to point akr at a different project directory, " +
+                    "or read the akr://context resource to see the current version resolution state.";
+            })
             .WithStdioServerTransport()
             .WithTools<TypeTools>()
             .WithTools<HostingTools>()
@@ -32,6 +45,8 @@ public sealed class McpSetup : ISetup<IServiceCollection>
             .WithTools<DeepIntelligenceTools>()
             .WithTools<StreamPersistenceTools>()
             .WithTools<ConfigMigrationTools>()
-            .WithTools<EcosystemTools>();
+            .WithTools<EcosystemTools>()
+            .WithTools<ProjectContextTools>()
+            .WithResources<ProjectContextResources>();
     }
 }

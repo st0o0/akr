@@ -1,7 +1,10 @@
 using System.Net;
 using System.Text.Json;
+using Akr.Analysis;
+using Akr.Configuration;
 using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using static Akr.Tests.TestHelpers;
 
 namespace Akr.Tests;
@@ -180,21 +183,35 @@ public sealed class GitHubClientCachingTests : IDisposable
     }
 
     [Fact]
-    public void ParseCacheTtl_default_is_24_hours()
+    public void AkrOptions_default_ttl_is_24_hours()
     {
-        Environment.SetEnvironmentVariable("AKR_CACHE_TTL_HOURS", null);
-        var ttl = GitHubClient.ParseCacheTtl(NullLogger.Instance);
-        Assert.Equal(TimeSpan.FromHours(24), ttl);
+        var options = new AkrOptions();
+        Assert.Equal(TimeSpan.FromHours(24), options.CacheTtl);
     }
 
     [Fact]
-    public void ParseCacheTtl_valid_value()
+    public void AkrOptions_custom_ttl()
+    {
+        var options = new AkrOptions { CacheTtlHours = 12 };
+        Assert.Equal(TimeSpan.FromHours(12), options.CacheTtl);
+    }
+
+    [Fact]
+    public void AkrOptions_zero_ttl_means_always_check()
+    {
+        var options = new AkrOptions { CacheTtlHours = 0 };
+        Assert.Equal(TimeSpan.Zero, options.CacheTtl);
+    }
+
+    [Fact]
+    public void AkrOptions_bind_from_environment_reads_ttl()
     {
         Environment.SetEnvironmentVariable("AKR_CACHE_TTL_HOURS", "12");
         try
         {
-            var ttl = GitHubClient.ParseCacheTtl(NullLogger.Instance);
-            Assert.Equal(TimeSpan.FromHours(12), ttl);
+            var options = new AkrOptions();
+            AkrOptions.BindFromEnvironment()(options);
+            Assert.Equal(12, options.CacheTtlHours);
         }
         finally
         {
@@ -203,28 +220,14 @@ public sealed class GitHubClientCachingTests : IDisposable
     }
 
     [Fact]
-    public void ParseCacheTtl_zero_means_always_check()
-    {
-        Environment.SetEnvironmentVariable("AKR_CACHE_TTL_HOURS", "0");
-        try
-        {
-            var ttl = GitHubClient.ParseCacheTtl(NullLogger.Instance);
-            Assert.Equal(TimeSpan.Zero, ttl);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("AKR_CACHE_TTL_HOURS", null);
-        }
-    }
-
-    [Fact]
-    public void ParseCacheTtl_invalid_falls_back_to_default()
+    public void AkrOptions_bind_from_environment_invalid_ttl_keeps_default()
     {
         Environment.SetEnvironmentVariable("AKR_CACHE_TTL_HOURS", "banana");
         try
         {
-            var ttl = GitHubClient.ParseCacheTtl(NullLogger.Instance);
-            Assert.Equal(TimeSpan.FromHours(24), ttl);
+            var options = new AkrOptions();
+            AkrOptions.BindFromEnvironment()(options);
+            Assert.Equal(24, options.CacheTtlHours);
         }
         finally
         {
@@ -340,8 +343,10 @@ public sealed class GitHubClientCachingTests : IDisposable
 
     private GitHubClient CreateClient(HttpMessageHandler handler) =>
         new(new HttpClient(handler), NullLogger<GitHubClient>.Instance,
-            new FileService(new System.IO.Abstractions.FileSystem()), _cacheRoot,
-            cacheTtl: TimeSpan.FromHours(24), timeProvider: _time);
+            new FileService(new System.IO.Abstractions.FileSystem()),
+            new ProjectScanner(new FileService(new System.IO.Abstractions.FileSystem()), NullLogger<ProjectScanner>.Instance),
+            Options.Create(new AkrOptions { CacheRoot = _cacheRoot }),
+            _time);
 
     private void WriteTestMetadata(RepoMetadata metadata)
     {

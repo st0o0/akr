@@ -57,6 +57,9 @@ public sealed class FileService
 
     public IEnumerable<string> EnumerateDirectories(string path) => _fs.Directory.EnumerateDirectories(path);
 
+    public IEnumerable<string> EnumerateDirectoryFiles(string path, string pattern) =>
+        _fs.Directory.EnumerateFiles(path, pattern, SearchOption.TopDirectoryOnly);
+
     // ---- Path operations ----
 
     public string Combine(params string[] paths) => _fs.Path.Combine(paths);

@@ -1,7 +1,10 @@
 using System.Net;
+using Akr.Analysis;
+using Akr.Configuration;
 using Akr.Registry;
 using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using static Akr.Tests.TestHelpers;
 
 namespace Akr.Tests;
@@ -159,7 +162,10 @@ public sealed class GitHubClientTests : IDisposable
 
     private GitHubClient CreateClient(HttpMessageHandler handler) =>
         new(new HttpClient(handler), NullLogger<GitHubClient>.Instance,
-            new FileService(new System.IO.Abstractions.FileSystem()), _cacheRoot);
+            new FileService(new System.IO.Abstractions.FileSystem()),
+            new ProjectScanner(new FileService(new System.IO.Abstractions.FileSystem()), NullLogger<ProjectScanner>.Instance),
+            Options.Create(new AkrOptions { CacheRoot = _cacheRoot }),
+            TimeProvider.System);
 
     private sealed class FakeHandler(Func<HttpRequestMessage, (HttpStatusCode Status, byte[] Body)> handler)
         : HttpMessageHandler

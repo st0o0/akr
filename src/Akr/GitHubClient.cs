@@ -2,9 +2,12 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
+using Akr.Analysis;
+using Akr.Configuration;
 using Akr.Registry;
 using Akr.Tools;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Akr;
 
@@ -19,6 +22,7 @@ public sealed class GitHubClient
     private readonly HttpClient _httpClient;
     private readonly ILogger<GitHubClient> _logger;
     private readonly FileService _fileService;
+    private readonly ProjectScanner _projectScanner;
     private readonly TimeSpan _cacheTtl;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
@@ -28,17 +32,17 @@ public sealed class GitHubClient
         HttpClient httpClient,
         ILogger<GitHubClient> logger,
         FileService fileService,
-        string? cacheRoot = null,
-        TimeSpan? cacheTtl = null,
-        TimeProvider? timeProvider = null)
+        ProjectScanner projectScanner,
+        IOptions<AkrOptions> options,
+        TimeProvider timeProvider)
     {
         _httpClient = httpClient;
         _logger = logger;
         _fileService = fileService;
-        _cacheRoot = cacheRoot ?? _fileService.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".akr", "sources");
-        _cacheTtl = cacheTtl ?? ParseCacheTtl(logger);
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _projectScanner = projectScanner;
+        _cacheRoot = options.Value.CacheRoot;
+        _cacheTtl = options.Value.CacheTtl;
+        _timeProvider = timeProvider;
     }
 
     public async Task<string> EnsureSourceAsync(string repo, CancellationToken cancellationToken = default)
@@ -142,6 +146,17 @@ public sealed class GitHubClient
         if (_latestVersions.TryGetValue(repo, out var cached))
         {
             return cached;
+        }
+
+        if (_projectScanner.Current is { HasPackages: true } scanResult)
+        {
+            var repoVersions = _projectScanner.MapToRepoVersions(scanResult.Packages);
+            if (repoVersions.TryGetValue(repo, out var projectVersion))
+            {
+                _logger.LogInformation("Using project-detected version for {Repo}: {Version}", repo, projectVersion);
+                _latestVersions[repo] = projectVersion;
+                return projectVersion;
+            }
         }
 
         var repoName = RepoName(repo);
@@ -338,22 +353,5 @@ public sealed class GitHubClient
         {
             _logger.LogWarning("Failed to clean up old versions for {Repo}: {Error}", repoName, ex.Message);
         }
-    }
-
-    internal static TimeSpan ParseCacheTtl(ILogger logger)
-    {
-        var value = Environment.GetEnvironmentVariable("AKR_CACHE_TTL_HOURS");
-        if (string.IsNullOrEmpty(value))
-        {
-            return TimeSpan.FromHours(24);
-        }
-
-        if (int.TryParse(value, out var hours) && hours >= 0)
-        {
-            return TimeSpan.FromHours(hours);
-        }
-
-        logger.LogWarning("Invalid AKR_CACHE_TTL_HOURS value '{Value}', using default 24h", value);
-        return TimeSpan.FromHours(24);
     }
 }
