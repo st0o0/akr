@@ -80,9 +80,10 @@ public sealed partial class EcosystemTools
     public async Task<string> SerializerBindingsAsync(
         GitHubClient github,
         [Description("Optional filter on type or serializer name")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindSerializerBindings(roots, filter);
     }
 
@@ -138,9 +139,10 @@ public sealed partial class EcosystemTools
     public async Task<string> SerializerDetailAsync(
         GitHubClient github,
         [Description("Serializer class name or fragment (e.g. Json, Protobuf)")] string name,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindSerializerDetail(roots, name);
     }
 
@@ -210,9 +212,10 @@ public sealed partial class EcosystemTools
     public async Task<string> SerializationManifestAsync(
         GitHubClient github,
         [Description("Optional file path filter (default: Persistence)")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindManifests(roots, filter);
     }
 
@@ -253,9 +256,10 @@ public sealed partial class EcosystemTools
     [McpServerTool(Name = "hosting_di_patterns"), Description("Catalog of dependency injection patterns in Akka.Hosting source (IRequiredActor, ActorRegistry, Props with DI).")]
     public async Task<string> HostingDiPatternsAsync(
         GitHubClient github,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindDiPatterns(roots);
     }
 
@@ -316,9 +320,10 @@ public sealed partial class EcosystemTools
     [McpServerTool(Name = "hosting_testkit"), Description("Compare Akka.TestKit and Akka.Hosting.TestKit: base classes and assertion methods.")]
     public async Task<string> HostingTestKitAsync(
         GitHubClient github,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return CompareTestKits(roots);
     }
 
@@ -390,9 +395,10 @@ public sealed partial class EcosystemTools
     public async Task<string> TestKitHelpersAsync(
         GitHubClient github,
         [Description("Optional method name filter")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindTestKitHelpers(roots, filter);
     }
 
@@ -478,9 +484,10 @@ public sealed partial class EcosystemTools
     [McpServerTool(Name = "cluster_events"), Description("List Akka.Cluster ClusterEvent types ordered by member lifecycle (Joining, Up, Leaving, Exiting, Down, Removed) with XML doc descriptions.")]
     public async Task<string> ClusterEventsAsync(
         GitHubClient github,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindClusterEvents(roots);
     }
 
@@ -548,9 +555,10 @@ public sealed partial class EcosystemTools
     [McpServerTool(Name = "extension_points"), Description("Catalog Akka.NET provider/plugin/extension interfaces (I*Provider, I*Plugin, I*Extension) with implementors.")]
     public async Task<string> ExtensionPointsAsync(
         GitHubClient github,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindExtensionPoints(roots);
     }
 
@@ -624,9 +632,10 @@ public sealed partial class EcosystemTools
     public async Task<string> DependencyGraphAsync(
         GitHubClient github,
         [Description("Optional project name filter (e.g. Akka.Cluster)")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return BuildDependencyGraph(roots, filter);
     }
 

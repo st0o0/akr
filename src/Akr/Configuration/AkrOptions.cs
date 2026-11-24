@@ -11,6 +11,8 @@ public sealed class AkrOptions
 
     public string? ProjectPath { get; set; }
 
+    public int MaxCachedVersions { get; set; } = 3;
+
     public TimeSpan CacheTtl => TimeSpan.FromHours(CacheTtlHours);
 
     public static Action<AkrOptions> BindFromEnvironment(ILogger? logger = null)
@@ -33,6 +35,19 @@ public sealed class AkrOptions
                 else
                 {
                     logger?.LogWarning("Invalid AKR_CACHE_TTL_HOURS value '{Value}', using default 24h", ttl);
+                }
+            }
+
+            var maxVersions = Environment.GetEnvironmentVariable("AKR_MAX_CACHED_VERSIONS");
+            if (!string.IsNullOrEmpty(maxVersions))
+            {
+                if (int.TryParse(maxVersions, out var max) && max >= 1)
+                {
+                    options.MaxCachedVersions = max;
+                }
+                else
+                {
+                    logger?.LogWarning("Invalid AKR_MAX_CACHED_VERSIONS value '{Value}', using default 3", maxVersions);
                 }
             }
 

@@ -133,7 +133,7 @@ public sealed class GitHubClientCachingTests : IDisposable
     }
 
     [Fact]
-    public async Task EnsureSourceAsync_cleans_up_old_version()
+    public async Task EnsureSourceAsync_retains_old_version_under_limit()
     {
         var oldDir = Path.Combine(_cacheRoot, RepoName, "1.5.74");
         Directory.CreateDirectory(oldDir);
@@ -144,7 +144,8 @@ public sealed class GitHubClientCachingTests : IDisposable
             Version = "1.5.75",
             Etag = "\"etag-1\"",
             LastChecked = _time.GetUtcNow().AddMinutes(-5),
-            TagFormat = "plain"
+            TagFormat = "plain",
+            CachedVersions = [new CachedVersionEntry { Version = "1.5.74", LastAccessed = _time.GetUtcNow().AddHours(-2), TagFormat = "plain" }]
         });
 
         var tarball = CreateTestTarGz("akka.net-1.5.75/", [
@@ -157,8 +158,111 @@ public sealed class GitHubClientCachingTests : IDisposable
 
         await client.EnsureSourceAsync(Repo, TestContext.Current.CancellationToken);
 
-        Assert.False(Directory.Exists(oldDir));
+        Assert.True(Directory.Exists(oldDir), "Old version should be retained under LRU limit");
         Assert.True(Directory.Exists(Path.Combine(_cacheRoot, RepoName, "1.5.75")));
+    }
+
+    [Fact]
+    public async Task EnsureSourceAsync_evicts_lru_when_over_limit()
+    {
+        var v1Dir = Path.Combine(_cacheRoot, RepoName, "1.5.72");
+        var v2Dir = Path.Combine(_cacheRoot, RepoName, "1.5.73");
+        var v3Dir = Path.Combine(_cacheRoot, RepoName, "1.5.74");
+        Directory.CreateDirectory(v1Dir);
+        Directory.CreateDirectory(v2Dir);
+        Directory.CreateDirectory(v3Dir);
+
+        WriteTestMetadata(new RepoMetadata
+        {
+            Version = "1.5.75",
+            Etag = "\"etag-1\"",
+            LastChecked = _time.GetUtcNow().AddMinutes(-5),
+            TagFormat = "plain",
+            CachedVersions =
+            [
+                new CachedVersionEntry { Version = "1.5.72", LastAccessed = _time.GetUtcNow().AddHours(-3), TagFormat = "plain" },
+                new CachedVersionEntry { Version = "1.5.73", LastAccessed = _time.GetUtcNow().AddHours(-2), TagFormat = "plain" },
+                new CachedVersionEntry { Version = "1.5.74", LastAccessed = _time.GetUtcNow().AddHours(-1), TagFormat = "plain" },
+            ]
+        });
+
+        var tarball = CreateTestTarGz("akka.net-1.5.75/", [
+            ("akka.net-1.5.75/README.md", "# New"),
+        ]);
+
+        var handler = new CachingFakeHandler(_ =>
+            (HttpStatusCode.OK, tarball, null));
+        var client = CreateClient(handler, maxCachedVersions: 3);
+
+        await client.EnsureSourceAsync(Repo, TestContext.Current.CancellationToken);
+
+        Assert.False(Directory.Exists(v1Dir), "Oldest version should be evicted");
+        Assert.True(Directory.Exists(v2Dir), "Recent version should be retained");
+        Assert.True(Directory.Exists(v3Dir), "Recent version should be retained");
+        Assert.True(Directory.Exists(Path.Combine(_cacheRoot, RepoName, "1.5.75")));
+    }
+
+    [Fact]
+    public async Task EnsureSourceForVersionAsync_fetches_specific_version()
+    {
+        WriteTestMetadata(new RepoMetadata
+        {
+            Version = "1.5.75",
+            Etag = "\"etag-1\"",
+            LastChecked = _time.GetUtcNow().AddMinutes(-5),
+            TagFormat = "plain"
+        });
+
+        var tarball = CreateTestTarGz("akka.net-1.5.52/", [
+            ("akka.net-1.5.52/README.md", "# Old version"),
+        ]);
+
+        var requests = new List<string>();
+        var handler = new CachingFakeHandler(req =>
+        {
+            requests.Add(req.RequestUri!.AbsoluteUri);
+            return (HttpStatusCode.OK, tarball, null);
+        });
+        var client = CreateClient(handler);
+
+        var path = await client.EnsureSourceForVersionAsync(Repo, "1.5.52", TestContext.Current.CancellationToken);
+
+        Assert.True(Directory.Exists(path));
+        Assert.Contains("1.5.52.tar.gz", requests.Single(r => r.Contains(".tar.gz")));
+
+        var meta = client.ReadMetadata(RepoName);
+        Assert.NotNull(meta);
+        Assert.Contains(meta.CachedVersions, v => v.Version == "1.5.52");
+    }
+
+    [Fact]
+    public async Task EnsureSourceForVersionAsync_returns_cached_version_without_http()
+    {
+        Directory.CreateDirectory(Path.Combine(_cacheRoot, RepoName, "1.5.52"));
+
+        WriteTestMetadata(new RepoMetadata
+        {
+            Version = "1.5.75",
+            Etag = "\"etag-1\"",
+            LastChecked = _time.GetUtcNow().AddMinutes(-5),
+            TagFormat = "plain",
+            CachedVersions = [new CachedVersionEntry { Version = "1.5.52", LastAccessed = _time.GetUtcNow().AddHours(-1), TagFormat = "plain" }]
+        });
+
+        var handler = new CachingFakeHandler(_ => throw new InvalidOperationException("Should not be called"));
+        var client = CreateClient(handler);
+
+        var path = await client.EnsureSourceForVersionAsync(Repo, "1.5.52", TestContext.Current.CancellationToken);
+
+        Assert.True(Directory.Exists(path));
+        Assert.Equal(0, handler.CallCount);
+    }
+
+    [Fact]
+    public void RepoMetadata_cachedVersions_defaults_to_empty()
+    {
+        var meta = new RepoMetadata { Version = "1.5.75" };
+        Assert.Empty(meta.CachedVersions);
     }
 
     [Fact]
@@ -341,11 +445,11 @@ public sealed class GitHubClientCachingTests : IDisposable
         Assert.Equal(callsAfterFirst, handler.CallCount);
     }
 
-    private GitHubClient CreateClient(HttpMessageHandler handler) =>
+    private GitHubClient CreateClient(HttpMessageHandler handler, int maxCachedVersions = 3) =>
         new(new HttpClient(handler), NullLogger<GitHubClient>.Instance,
             new FileService(new System.IO.Abstractions.FileSystem()),
             new ProjectScanner(new FileService(new System.IO.Abstractions.FileSystem()), NullLogger<ProjectScanner>.Instance),
-            Options.Create(new AkrOptions { CacheRoot = _cacheRoot }),
+            Options.Create(new AkrOptions { CacheRoot = _cacheRoot, MaxCachedVersions = maxCachedVersions }),
             _time);
 
     private void WriteTestMetadata(RepoMetadata metadata)

@@ -25,7 +25,9 @@ public sealed class GitHubClient
     private readonly ProjectScanner _projectScanner;
     private readonly TimeSpan _cacheTtl;
     private readonly TimeProvider _timeProvider;
+    private readonly int _maxCachedVersions;
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<string>> _cachedRootsByVersion = new(StringComparer.Ordinal);
     private IReadOnlyList<string>? _cachedRoots;
 
     public GitHubClient(
@@ -42,6 +44,7 @@ public sealed class GitHubClient
         _projectScanner = projectScanner;
         _cacheRoot = options.Value.CacheRoot;
         _cacheTtl = options.Value.CacheTtl;
+        _maxCachedVersions = options.Value.MaxCachedVersions;
         _timeProvider = timeProvider;
     }
 
@@ -53,6 +56,7 @@ public sealed class GitHubClient
 
         if (_fileService.DirectoryExists(targetPath))
         {
+            TouchVersionAccess(repoName, version);
             return targetPath;
         }
 
@@ -114,7 +118,127 @@ public sealed class GitHubClient
             WriteMetadata(repoName, updatedMeta);
         }
 
-        CleanupOldVersions(repoName, version);
+        RecordVersionAccess(repoName, version, usedVPrefix ? "v-prefixed" : "plain");
+        CleanupOldVersions(repoName);
+
+        return targetPath;
+    }
+
+    public async Task<string> EnsureDocsAsync(CancellationToken cancellationToken = default)
+    {
+        var repo = RepoRegistry.DocsRepo;
+        var repoName = RepoName(repo);
+        const string branch = "master";
+        var targetPath = _fileService.Combine(_cacheRoot, repoName, branch);
+
+        if (_fileService.DirectoryExists(targetPath))
+        {
+            return targetPath;
+        }
+
+        var url = $"https://github.com/{repo}/archive/refs/heads/{branch}.tar.gz";
+        _logger.LogInformation("Fetching docs from {Repo} branch {Branch}", repo, branch);
+
+        var tempPath = targetPath + ".tmp";
+        try
+        {
+            if (_fileService.DirectoryExists(tempPath))
+            {
+                _fileService.DeleteDirectory(tempPath, true);
+            }
+
+            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            ThrowIfFailed(response, repo, branch);
+
+            await using var gzipStream = new GZipStream(
+                await response.Content.ReadAsStreamAsync(cancellationToken),
+                CompressionMode.Decompress);
+
+            _fileService.CreateDirectory(tempPath);
+            await ExtractTarAsync(gzipStream, tempPath, cancellationToken);
+
+            _fileService.MoveDirectory(tempPath, targetPath);
+        }
+        catch
+        {
+            if (_fileService.DirectoryExists(tempPath))
+            {
+                _fileService.DeleteDirectory(tempPath, true);
+            }
+
+            throw;
+        }
+
+        return targetPath;
+    }
+
+    public async Task<string> EnsureSourceForVersionAsync(string repo, string version, CancellationToken cancellationToken = default)
+    {
+        var repoName = RepoName(repo);
+        var targetPath = _fileService.Combine(_cacheRoot, repoName, version);
+
+        if (_fileService.DirectoryExists(targetPath))
+        {
+            TouchVersionAccess(repoName, version);
+            return targetPath;
+        }
+
+        var meta = ReadMetadata(repoName);
+        var tagFormat = meta?.CachedVersions
+            .FirstOrDefault(v => string.Equals(v.Version, version, StringComparison.Ordinal))?.TagFormat
+            ?? meta?.TagFormat;
+        var usedVPrefix = false;
+
+        var tempPath = targetPath + ".tmp";
+        try
+        {
+            if (_fileService.DirectoryExists(tempPath))
+            {
+                _fileService.DeleteDirectory(tempPath, true);
+            }
+
+            if (tagFormat == "v-prefixed")
+            {
+                await FetchArchiveAsync(repo, $"v{version}", tempPath, cancellationToken);
+                usedVPrefix = true;
+            }
+            else if (tagFormat == "plain")
+            {
+                await FetchArchiveAsync(repo, version, tempPath, cancellationToken);
+            }
+            else
+            {
+                try
+                {
+                    await FetchArchiveAsync(repo, version, tempPath, cancellationToken);
+                }
+                catch (SourceFetchException)
+                {
+                    _logger.LogDebug("Tag {Tag} failed for {Repo}, trying v-prefixed", version, repo);
+                    if (_fileService.DirectoryExists(tempPath))
+                    {
+                        _fileService.DeleteDirectory(tempPath, true);
+                    }
+
+                    await FetchArchiveAsync(repo, $"v{version}", tempPath, cancellationToken);
+                    usedVPrefix = true;
+                }
+            }
+
+            _fileService.MoveDirectory(tempPath, targetPath);
+        }
+        catch
+        {
+            if (_fileService.DirectoryExists(tempPath))
+            {
+                _fileService.DeleteDirectory(tempPath, true);
+            }
+
+            throw;
+        }
+
+        RecordVersionAccess(repoName, version, usedVPrefix ? "v-prefixed" : "plain");
+        CleanupOldVersions(repoName);
 
         return targetPath;
     }
@@ -138,6 +262,33 @@ public sealed class GitHubClient
         }
 
         _cachedRoots = roots;
+        return roots;
+    }
+
+    public async Task<IReadOnlyList<string>> EnsureAllSourcesForVersionAsync(string? version, CancellationToken cancellationToken = default)
+    {
+        if (version is null)
+        {
+            return await EnsureAllSourcesAsync(cancellationToken);
+        }
+
+        if (_cachedRootsByVersion.TryGetValue(version, out var cached))
+        {
+            return cached;
+        }
+
+        var roots = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var repo in RepoRegistry.GetAllRepos())
+        {
+            if (seen.Add(repo))
+            {
+                roots.Add(await EnsureSourceForVersionAsync(repo, version, cancellationToken));
+            }
+        }
+
+        _cachedRootsByVersion[version] = roots;
         return roots;
     }
 
@@ -328,26 +479,82 @@ public sealed class GitHubClient
         _fileService.WriteAtomic(path, JsonSerializer.SerializeToUtf8Bytes(metadata, _jsonOptions));
     }
 
-    private void CleanupOldVersions(string repoName, string currentVersion)
+    private void TouchVersionAccess(string repoName, string version)
+    {
+        var meta = ReadMetadata(repoName);
+        if (meta is null)
+        {
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+        var updated = meta.CachedVersions
+            .Select(v => string.Equals(v.Version, version, StringComparison.Ordinal)
+                ? v with { LastAccessed = now }
+                : v)
+            .ToList();
+
+        if (!updated.Exists(v => string.Equals(v.Version, version, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        WriteMetadata(repoName, meta with { CachedVersions = updated });
+    }
+
+    private void RecordVersionAccess(string repoName, string version, string tagFormat)
+    {
+        var meta = ReadMetadata(repoName);
+        var now = _timeProvider.GetUtcNow();
+
+        var entry = new CachedVersionEntry
+        {
+            Version = version,
+            LastAccessed = now,
+            TagFormat = tagFormat
+        };
+
+        var versions = (meta?.CachedVersions ?? [])
+            .Where(v => !string.Equals(v.Version, version, StringComparison.Ordinal))
+            .Append(entry)
+            .ToList();
+
+        if (meta is not null)
+        {
+            WriteMetadata(repoName, meta with { CachedVersions = versions });
+        }
+    }
+
+    private void CleanupOldVersions(string repoName)
     {
         try
         {
-            var repoDir = _fileService.Combine(_cacheRoot, repoName);
-            if (!_fileService.DirectoryExists(repoDir))
+            var meta = ReadMetadata(repoName);
+            if (meta is null || meta.CachedVersions.Count <= _maxCachedVersions)
             {
                 return;
             }
 
-            foreach (var dir in _fileService.EnumerateDirectories(repoDir))
+            var toEvict = meta.CachedVersions
+                .OrderBy(v => v.LastAccessed)
+                .Take(meta.CachedVersions.Count - _maxCachedVersions)
+                .ToList();
+
+            foreach (var entry in toEvict)
             {
-                var dirName = _fileService.GetFileName(dir);
-                if (!string.Equals(dirName, currentVersion, StringComparison.Ordinal) &&
-                    !dirName.EndsWith(".tmp", StringComparison.Ordinal))
+                var dir = _fileService.Combine(_cacheRoot, repoName, entry.Version);
+                if (_fileService.DirectoryExists(dir))
                 {
-                    _logger.LogInformation("Cleaning up old version {Repo}/{Version}", repoName, dirName);
+                    _logger.LogInformation("Evicting LRU version {Repo}/{Version}", repoName, entry.Version);
                     _fileService.DeleteDirectory(dir, true);
                 }
             }
+
+            var remaining = meta.CachedVersions
+                .Where(v => !toEvict.Exists(e => string.Equals(e.Version, v.Version, StringComparison.Ordinal)))
+                .ToList();
+
+            WriteMetadata(repoName, meta with { CachedVersions = remaining });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

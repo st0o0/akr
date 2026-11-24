@@ -21,9 +21,10 @@ public sealed partial class HostingTools
     public async Task<string> SearchExtensionsAsync(
         GitHubClient github,
         [Description("Optional keyword to filter by file path (e.g. Persistence, Cluster)")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return Format(FindExtensions(roots, filter), filter);
     }
 
@@ -55,9 +56,10 @@ public sealed partial class HostingTools
     public async Task<string> LookupConfigAsync(
         GitHubClient github,
         [Description("HOCON path to filter (e.g. akka.persistence, akka.remote). Omit for all config.")] string? path = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindConfig(roots, path);
     }
 

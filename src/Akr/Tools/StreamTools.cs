@@ -24,9 +24,10 @@ public sealed partial class StreamTools
         [Description("Regex pattern to search for")] string query,
         [Description("File glob pattern (default: *.cs)")] string? filePattern = null,
         [Description("Maximum results to return (default: 20)")] int? maxResults = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         if (roots.Count == 0)
         {
             return "No Akka.NET source available.";
@@ -75,9 +76,10 @@ public sealed partial class StreamTools
     public async Task<string> ListStagesAsync(
         GitHubClient github,
         [Description("Optional keyword to filter stages (e.g. fan, merge, broadcast)")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return Format(FindStages(roots, filter), filter);
     }
 

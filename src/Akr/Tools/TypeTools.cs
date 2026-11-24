@@ -21,9 +21,10 @@ public sealed partial class TypeTools
         GitHubClient github,
         [Description("Type name to look up (e.g. ActorBase, IActorRef, Props)")] string type,
         [Description("Return full file source instead of summary (default: false)")] bool? fullSource = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         if (roots.Count == 0)
         {
             return "No Akka.NET source available.";
@@ -60,9 +61,10 @@ public sealed partial class TypeTools
     public async Task<string> GetMembersAsync(
         GitHubClient github,
         [Description("Type name (e.g. ActorBase, Props, IActorRef)")] string type,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         if (roots.Count == 0)
         {
             return "No Akka.NET source available.";

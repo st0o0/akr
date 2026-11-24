@@ -59,9 +59,10 @@ public sealed partial class ConfigMigrationTools
     public async Task<string> ConfigTreeAsync(
         GitHubClient github,
         [Description("Optional HOCON path prefix to filter (e.g. akka.cluster)")] string? path = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return BuildConfigTree(roots, path);
     }
 
@@ -69,9 +70,10 @@ public sealed partial class ConfigMigrationTools
     public async Task<string> HostingToHoconAsync(
         GitHubClient github,
         [Description("Hosting method (e.g. WithClustering) or HOCON path (e.g. akka.cluster.roles)")] string query,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return MapQuery(roots, query);
     }
 
@@ -79,9 +81,10 @@ public sealed partial class ConfigMigrationTools
     public async Task<string> StartupOrderAsync(
         GitHubClient github,
         [Description("Optional keyword to filter by file path")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindStartupOrder(roots, filter);
     }
 
@@ -90,9 +93,10 @@ public sealed partial class ConfigMigrationTools
         GitHubClient github,
         [Description("Older version (reserved; only the latest cached version is currently supported)")] string? versionA = null,
         [Description("Newer version (reserved; only the latest cached version is currently supported)")] string? versionB = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         var current = CollectConfig(roots);
         var diff = DiffConfig(new Dictionary<string, string?>(), current);
         var sb = new StringBuilder();
@@ -109,9 +113,10 @@ public sealed partial class ConfigMigrationTools
     public async Task<string> ChangelogAsync(
         GitHubClient github,
         [Description("Optional keyword to filter changelog entries")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return FindChangelog(roots, filter);
     }
 

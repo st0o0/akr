@@ -31,9 +31,10 @@ public sealed partial class DeepIntelligenceTools
     public async Task<string> TypeHierarchyAsync(
         GitHubClient github,
         [Description("Type name (e.g. ActorBase, ReceiveActor, IActorRef)")] string type,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Hierarchy(roots, type);
     }
 
@@ -41,9 +42,10 @@ public sealed partial class DeepIntelligenceTools
     public async Task<string> FindImplementationsAsync(
         GitHubClient github,
         [Description("Interface name (e.g. IActorRef, IWithTimers)")] string @interface,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Implementations(roots, @interface);
     }
 
@@ -51,9 +53,10 @@ public sealed partial class DeepIntelligenceTools
     public async Task<string> FindMessagesAsync(
         GitHubClient github,
         [Description("Actor class name")] string actor,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Messages(roots, actor);
     }
 
@@ -61,9 +64,10 @@ public sealed partial class DeepIntelligenceTools
     public async Task<string> MessageProtocolAsync(
         GitHubClient github,
         [Description("Namespace fragment or actor/type name")] string scope,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Protocol(roots, scope);
     }
 
@@ -71,9 +75,10 @@ public sealed partial class DeepIntelligenceTools
     public async Task<string> VirtualMethodsAsync(
         GitHubClient github,
         [Description("Type name (e.g. ActorBase, ReceiveActor)")] string type,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : VirtualMethods(roots, type);
     }
 
@@ -81,9 +86,10 @@ public sealed partial class DeepIntelligenceTools
     public async Task<string> SupervisionDefaultsAsync(
         GitHubClient github,
         [Description("Type name, or 'default' (default) for the framework default strategy")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesAsync(cancellationToken);
+        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Supervision(roots, filter);
     }
 
