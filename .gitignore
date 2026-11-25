@@ -104,6 +104,7 @@ _ReSharper*/
 
 # Claude
 .claude/
+!.claude/skills/
 .worktrees/
 
 # OS
