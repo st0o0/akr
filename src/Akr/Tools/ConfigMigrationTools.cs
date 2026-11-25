@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Analysis;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,11 +12,13 @@ namespace Akr.Tools;
 public sealed partial class ConfigMigrationTools
 {
     private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
     private const int MaxSectionLines = 40;
 
-    public ConfigMigrationTools(FileService fileService)
+    public ConfigMigrationTools(FileService fileService, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
     }
 
     [GeneratedRegex(@"public\s+static\s+\S+\s+(?<name>(With|Add)\w+)\s*[\(<]", RegexOptions.NonBacktracking)]
@@ -57,46 +60,42 @@ public sealed partial class ConfigMigrationTools
 
     [McpServerTool(Name = "config_tree"), Description("Hierarchical view of HOCON config paths from reference.conf files, annotated with the Akka.Hosting With* method that sets them.")]
     public async Task<string> ConfigTreeAsync(
-        GitHubClient github,
         [Description("Optional HOCON path prefix to filter (e.g. akka.cluster)")] string? path = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return BuildConfigTree(roots, path);
     }
 
     [McpServerTool(Name = "hosting_to_hocon"), Description("Bidirectional mapping between Akka.Hosting With*/Add* methods and HOCON config keys.")]
     public async Task<string> HostingToHoconAsync(
-        GitHubClient github,
         [Description("Hosting method (e.g. WithClustering) or HOCON path (e.g. akka.cluster.roles)")] string query,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return MapQuery(roots, query);
     }
 
     [McpServerTool(Name = "hosting_startup_order"), Description("Registration ordering constraints and DI resolution hints from Akka.Hosting source.")]
     public async Task<string> StartupOrderAsync(
-        GitHubClient github,
         [Description("Optional keyword to filter by file path")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindStartupOrder(roots, filter);
     }
 
     [McpServerTool(Name = "config_diff"), Description("Config key changes between versions. Currently lists all config keys of the current cached version (diff against empty).")]
     public async Task<string> ConfigDiffAsync(
-        GitHubClient github,
         [Description("Older version (reserved; only the latest cached version is currently supported)")] string? versionA = null,
         [Description("Newer version (reserved; only the latest cached version is currently supported)")] string? versionB = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         var current = CollectConfig(roots);
         var diff = DiffConfig(new Dictionary<string, string?>(), current);
         var sb = new StringBuilder();
@@ -111,12 +110,11 @@ public sealed partial class ConfigMigrationTools
 
     [McpServerTool(Name = "changelog"), Description("Search CHANGELOG / RELEASE_NOTES files in cached source for breaking changes.")]
     public async Task<string> ChangelogAsync(
-        GitHubClient github,
         [Description("Optional keyword to filter changelog entries")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindChangelog(roots, filter);
     }
 

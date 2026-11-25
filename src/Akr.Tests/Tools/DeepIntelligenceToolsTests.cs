@@ -16,7 +16,7 @@ public sealed class DeepIntelligenceToolsTests : IDisposable
         Directory.CreateDirectory(_testRoot);
         _roots = [_testRoot];
         var fileService = new FileService(new FileSystem());
-        _tools = new DeepIntelligenceTools(fileService, new TypeScanner(fileService));
+        _tools = new DeepIntelligenceTools(fileService, new TypeScanner(fileService), null!);
 
         WriteFile("Actor/ActorBase.cs", """
             namespace Akka.Actor;

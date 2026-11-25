@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -12,10 +13,12 @@ public sealed partial class StreamPersistenceTools
     private const string NoSource = "No Akka.NET source available.";
 
     private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
 
-    public StreamPersistenceTools(FileService fileService)
+    public StreamPersistenceTools(FileService fileService, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
     }
 
     private static readonly string[] _journalBases = ["AsyncWriteJournal", "WriteJournalBase", "SyncWriteJournal"];
@@ -56,72 +59,65 @@ public sealed partial class StreamPersistenceTools
 
     [McpServerTool(Name = "stage_detail"), Description("Get the full source of a specific Akka.Streams stage by class name.")]
     public async Task<string> StageDetailAsync(
-        GitHubClient github,
         [Description("Stage class name (e.g. Merge, Broadcast, Buffer)")] string stage,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatStageDetail(roots, stage);
     }
 
     [McpServerTool(Name = "graph_dsl_operators"), Description("List GraphDSL builder operators and their signatures from Akka.Streams source.")]
     public async Task<string> GraphDslOperatorsAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatGraphDsl(roots);
     }
 
     [McpServerTool(Name = "stream_attributes"), Description("Catalog configurable Akka.Streams attributes with their defaults.")]
     public async Task<string> StreamAttributesAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatAttributes(roots);
     }
 
     [McpServerTool(Name = "journal_plugins"), Description("Catalog Akka.Persistence journal plugins with file paths and config sections.")]
     public async Task<string> JournalPluginsAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatPlugins("Journal plugins", FindPlugins(roots, _journalBases, "journal"));
     }
 
     [McpServerTool(Name = "snapshot_plugins"), Description("Catalog Akka.Persistence snapshot store plugins with file paths and config sections.")]
     public async Task<string> SnapshotPluginsAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatPlugins("Snapshot store plugins", FindPlugins(roots, _snapshotBases, "snapshot-store"));
     }
 
     [McpServerTool(Name = "persistence_query"), Description("List Akka.Persistence.Query ReadJournal implementations and their supported query types.")]
     public async Task<string> PersistenceQueryAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatReadJournals(roots);
     }
 
     [McpServerTool(Name = "event_adapter_chain"), Description("List event adapter implementations and event adapter configuration.")]
     public async Task<string> EventAdapterChainAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : FormatAdapters(roots);
     }
 

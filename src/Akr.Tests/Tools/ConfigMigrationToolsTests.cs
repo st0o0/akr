@@ -10,7 +10,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
 
     public ConfigMigrationToolsTests()
     {
-        _tools = new ConfigMigrationTools(new FileService(new FileSystem()));
+        _tools = new ConfigMigrationTools(new FileService(new FileSystem()), null!);
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -10,21 +11,22 @@ namespace Akr.Tools;
 public sealed partial class TypeTools
 {
     private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
 
-    public TypeTools(FileService fileService)
+    public TypeTools(FileService fileService, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
     }
 
     [McpServerTool(Name = "lookup_type"), Description("Find a C# type by name across cached Akka.NET source code and return its source.")]
     public async Task<string> LookupTypeAsync(
-        GitHubClient github,
         [Description("Type name to look up (e.g. ActorBase, IActorRef, Props)")] string type,
         [Description("Return full file source instead of summary (default: false)")] bool? fullSource = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         if (roots.Count == 0)
         {
             return "No Akka.NET source available.";
@@ -59,12 +61,11 @@ public sealed partial class TypeTools
 
     [McpServerTool(Name = "type_members"), Description("Get compact member signatures for a C# type in Akka.NET source.")]
     public async Task<string> GetMembersAsync(
-        GitHubClient github,
         [Description("Type name (e.g. ActorBase, Props, IActorRef)")] string type,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         if (roots.Count == 0)
         {
             return "No Akka.NET source available.";

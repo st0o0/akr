@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,23 +12,24 @@ public sealed partial class StreamTools
 {
     private readonly FileService _fileService;
     private readonly SourceSearcher _sourceSearcher;
+    private readonly SourcePipeline _sourcePipeline;
 
-    public StreamTools(FileService fileService, SourceSearcher sourceSearcher)
+    public StreamTools(FileService fileService, SourceSearcher sourceSearcher, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
         _sourceSearcher = sourceSearcher;
+        _sourcePipeline = sourcePipeline;
     }
 
     [McpServerTool(Name = "search_source"), Description("Search across cached Akka.NET source code using regex patterns.")]
     public async Task<string> SearchAsync(
-        GitHubClient github,
         [Description("Regex pattern to search for")] string query,
         [Description("File glob pattern (default: *.cs)")] string? filePattern = null,
         [Description("Maximum results to return (default: 20)")] int? maxResults = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         if (roots.Count == 0)
         {
             return "No Akka.NET source available.";
@@ -74,12 +76,11 @@ public sealed partial class StreamTools
 
     [McpServerTool(Name = "stream_stages"), Description("Catalog built-in Akka.Streams stages with shape classification.")]
     public async Task<string> ListStagesAsync(
-        GitHubClient github,
         [Description("Optional keyword to filter stages (e.g. fan, merge, broadcast)")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return Format(FindStages(roots, filter), filter);
     }
 

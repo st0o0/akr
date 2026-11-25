@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -9,12 +10,14 @@ namespace Akr.Tools;
 public sealed partial class EcosystemTools
 {
     private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
     private const int MaxClassLines = 200;
     private const int MaxMatchesPerCategory = 15;
 
-    public EcosystemTools(FileService fileService)
+    public EcosystemTools(FileService fileService, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
     }
 
     private static readonly string[] _clusterLifecycle =
@@ -78,12 +81,11 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "serializer_bindings"), Description("Show Akka.NET serialization-bindings (type to serializer mapping) from reference.conf files.")]
     public async Task<string> SerializerBindingsAsync(
-        GitHubClient github,
         [Description("Optional filter on type or serializer name")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindSerializerBindings(roots, filter);
     }
 
@@ -137,12 +139,11 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "serializer_detail"), Description("Show source and reference.conf config for Akka.NET serializer classes (Serializer / SerializerWithStringManifest).")]
     public async Task<string> SerializerDetailAsync(
-        GitHubClient github,
         [Description("Serializer class name or fragment (e.g. Json, Protobuf)")] string name,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindSerializerDetail(roots, name);
     }
 
@@ -210,12 +211,11 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "serialization_manifest"), Description("Find serialization manifest mappings (ISerializationManifest, Manifest methods, manifest constants) in persistence code.")]
     public async Task<string> SerializationManifestAsync(
-        GitHubClient github,
         [Description("Optional file path filter (default: Persistence)")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindManifests(roots, filter);
     }
 
@@ -255,11 +255,10 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "hosting_di_patterns"), Description("Catalog of dependency injection patterns in Akka.Hosting source (IRequiredActor, ActorRegistry, Props with DI).")]
     public async Task<string> HostingDiPatternsAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindDiPatterns(roots);
     }
 
@@ -319,11 +318,10 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "hosting_testkit"), Description("Compare Akka.TestKit and Akka.Hosting.TestKit: base classes and assertion methods.")]
     public async Task<string> HostingTestKitAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return CompareTestKits(roots);
     }
 
@@ -393,12 +391,11 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "testkit_helpers"), Description("Catalog public utility and assertion methods in Akka TestKit source, grouped by purpose.")]
     public async Task<string> TestKitHelpersAsync(
-        GitHubClient github,
         [Description("Optional method name filter")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindTestKitHelpers(roots, filter);
     }
 
@@ -483,11 +480,10 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "cluster_events"), Description("List Akka.Cluster ClusterEvent types ordered by member lifecycle (Joining, Up, Leaving, Exiting, Down, Removed) with XML doc descriptions.")]
     public async Task<string> ClusterEventsAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindClusterEvents(roots);
     }
 
@@ -554,11 +550,10 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "extension_points"), Description("Catalog Akka.NET provider/plugin/extension interfaces (I*Provider, I*Plugin, I*Extension) with implementors.")]
     public async Task<string> ExtensionPointsAsync(
-        GitHubClient github,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindExtensionPoints(roots);
     }
 
@@ -630,12 +625,11 @@ public sealed partial class EcosystemTools
 
     [McpServerTool(Name = "dependency_graph"), Description("Build an Akka package dependency map from .csproj ProjectReference and PackageReference entries.")]
     public async Task<string> DependencyGraphAsync(
-        GitHubClient github,
         [Description("Optional project name filter (e.g. Akka.Cluster)")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return BuildDependencyGraph(roots, filter);
     }
 

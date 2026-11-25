@@ -4,9 +4,9 @@
 [![NuGet](https://img.shields.io/nuget/v/Akr?style=flat-square)](https://www.nuget.org/packages/Akr)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
-Akka.NET source intelligence for AI agents. An [MCP](https://modelcontextprotocol.io/) server that gives agents fast, token-efficient access to Akka.NET source code directly from GitHub - no ILSpy decompilation needed.
+Akka.NET source intelligence for AI agents. An [MCP](https://modelcontextprotocol.io/) server that gives agents fast, token-efficient access to Akka.NET source code and documentation directly from GitHub - no ILSpy decompilation needed.
 
-Zero config. Resolves latest Akka.NET versions automatically. Distributed as a dotnet tool.
+Zero config. Resolves latest Akka.NET versions automatically. Supports version pinning and cross-version comparison. Powered by Akka.Streams for parallel source fetching. Distributed as a dotnet tool.
 
 ## Quick Start
 
@@ -43,67 +43,102 @@ dotnet tool install --global Akr
 
 Then configure your MCP client with `"command": "akr"` directly.
 
-## Tools (33)
+## Tools (37)
+
+### Source Intelligence
 
 | Tool | What it does |
 |------|-------------|
 | `search_source` | Regex search across all Akka.NET source |
 | `lookup_type` | Find a type, return its source file |
 | `type_members` | Compact member signatures (no bodies) |
-| `hosting_extensions` | List `With*`/`Add*` Akka.Hosting methods |
-| `config_reference` | HOCON defaults from `reference.conf` |
-| `stream_stages` | Catalog of Akka.Streams built-in stages |
 | `type_hierarchy` | Full inheritance trees (up and down) |
 | `find_implementations` | All implementations of an interface |
 | `find_messages` | Message types handled by an actor |
 | `message_protocol` | Request/response pairs and events |
 | `virtual_methods` | Overridable methods with lifecycle ordering |
 | `supervision_defaults` | Default supervision strategies |
+
+### Documentation
+
+| Tool | What it does |
+|------|-------------|
+| `docs_search` | Search getakka.net documentation by topic |
+| `docs_example` | Find code examples from docs with language filter |
+
+### Version Comparison
+
+| Tool | What it does |
+|------|-------------|
+| `source_diff` | Unified diff of a type or config between versions |
+| `migration_guide` | Structured upgrade guide combining changelog, config diffs, and docs |
+
+### Config & Hosting
+
+| Tool | What it does |
+|------|-------------|
+| `config_reference` | HOCON defaults from `reference.conf` |
+| `config_tree` | Hierarchical config with Hosting/HOCON layers |
+| `config_diff` | Config key listing per version |
+| `hosting_extensions` | List `With*`/`Add*` Akka.Hosting methods |
+| `hosting_to_hocon` | Bidirectional Hosting API to HOCON mapping |
+| `hosting_startup_order` | Registration ordering constraints |
+| `hosting_di_patterns` | DI integration patterns |
+| `changelog` | Changelog/release notes search |
+
+### Streams
+
+| Tool | What it does |
+|------|-------------|
+| `stream_stages` | Catalog of Akka.Streams built-in stages |
 | `stage_detail` | Full source of a specific stream stage |
 | `graph_dsl_operators` | GraphDSL operators with shapes |
 | `stream_attributes` | Configurable stream attributes with defaults |
+
+### Persistence
+
+| Tool | What it does |
+|------|-------------|
 | `journal_plugins` | Journal plugin catalog with config |
 | `snapshot_plugins` | Snapshot store catalog with config |
 | `persistence_query` | ReadJournal implementations |
 | `event_adapter_chain` | Event adapter configuration |
-| `config_tree` | Hierarchical config with Hosting/HOCON layers |
-| `hosting_to_hocon` | Bidirectional Hosting API to HOCON mapping |
-| `hosting_startup_order` | Registration ordering constraints |
-| `config_diff` | Config key listing per version |
-| `changelog` | Changelog/release notes search |
+
+### Serialization & Ecosystem
+
+| Tool | What it does |
+|------|-------------|
 | `serializer_bindings` | Serializer-to-type mapping |
 | `serializer_detail` | Serializer source and config |
 | `serialization_manifest` | Persistence event manifests |
-| `hosting_di_patterns` | DI integration patterns |
 | `hosting_testkit` | TestKit comparison (classic vs Hosting) |
 | `testkit_helpers` | TestKit utility catalog |
 | `cluster_events` | Cluster event lifecycle |
 | `extension_points` | Provider/plugin interfaces |
 | `dependency_graph` | Package dependency map |
 
+All source tools accept an optional `version` parameter to target a specific Akka.NET version (e.g. `lookup_type(type: "Props", version: "1.5.30")`).
+
 ## Usage Examples
 
 ```
-search_source(query: "Receive<T>")
-  → Finds all Receive<T> calls across Akka source, 2 lines context
+lookup_type(type: "Props", version: "1.5.30")
+  → Props source from Akka.NET 1.5.30 (version pinning)
 
-type_members(type: "Props")
-  → Props : IEquatable<Props>, ISurrogated
-    Properties: Type Type { get; }
-    Methods: static Props Create<T>(), static Props Create(Type type)
-    Constructors: Props(Type type)
+docs_search(query: "cluster sharding")
+  → 5 relevant pages from getakka.net documentation
+
+source_diff(typeName: "Props", versionA: "1.5.30", versionB: "1.5.35")
+  → Unified diff showing what changed between versions
+
+migration_guide(fromVersion: "1.5.0", toVersion: "1.5.74")
+  → Structured upgrade guide: changelog + config changes + relevant docs
+
+docs_example(topic: "persistence", language: "csharp")
+  → Code examples extracted from documentation
 
 hosting_extensions(filter: "Persistence")
   → WithSqlPersistence, WithJournalAndSnapshot, ... signatures
-
-config_reference(path: "akka.persistence")
-  → Full HOCON config block with all defaults
-
-find_implementations(type: "IActorRef")
-  → ActorRefBase, LocalActorRef, RemoteActorRef, ...
-
-type_hierarchy(type: "ActorBase")
-  → UntypedActor, ReceiveActor, ActorBase → IInternalActor
 ```
 
 ## Covered Repositories

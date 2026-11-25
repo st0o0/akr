@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Analysis;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -19,77 +20,73 @@ public sealed partial class DeepIntelligenceTools
     private const string EventSuffix = "Event";
 
     private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
     private readonly TypeScanner _scanner;
 
-    public DeepIntelligenceTools(FileService fileService, TypeScanner scanner)
+    public DeepIntelligenceTools(FileService fileService, TypeScanner scanner, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
         _scanner = scanner;
     }
 
     [McpServerTool(Name = "type_hierarchy"), Description("Show the full inheritance tree of a C# type: ancestors (base types and interfaces) and descendants.")]
     public async Task<string> TypeHierarchyAsync(
-        GitHubClient github,
         [Description("Type name (e.g. ActorBase, ReceiveActor, IActorRef)")] string type,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Hierarchy(roots, type);
     }
 
     [McpServerTool(Name = "find_implementations"), Description("Find all classes implementing an interface, including classes deriving from an implementing class.")]
     public async Task<string> FindImplementationsAsync(
-        GitHubClient github,
         [Description("Interface name (e.g. IActorRef, IWithTimers)")] string @interface,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Implementations(roots, @interface);
     }
 
     [McpServerTool(Name = "find_messages"), Description("List message types handled by an actor via Receive<T>, ReceiveAsync<T>, Command<T> handlers.")]
     public async Task<string> FindMessagesAsync(
-        GitHubClient github,
         [Description("Actor class name")] string actor,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Messages(roots, actor);
     }
 
     [McpServerTool(Name = "message_protocol"), Description("Summarize Command/Query/Event/Response/Result types in a namespace or actor, grouped into request-response pairs.")]
     public async Task<string> MessageProtocolAsync(
-        GitHubClient github,
         [Description("Namespace fragment or actor/type name")] string scope,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Protocol(roots, scope);
     }
 
     [McpServerTool(Name = "virtual_methods"), Description("List virtual and abstract methods of a type, ordered by actor lifecycle (PreStart, PreRestart, PostRestart, PostStop, AroundReceive, Receive).")]
     public async Task<string> VirtualMethodsAsync(
-        GitHubClient github,
         [Description("Type name (e.g. ActorBase, ReceiveActor)")] string type,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : VirtualMethods(roots, type);
     }
 
     [McpServerTool(Name = "supervision_defaults"), Description("Show supervision strategies: default strategy, or SupervisorStrategy overrides for a given type.")]
     public async Task<string> SupervisionDefaultsAsync(
-        GitHubClient github,
         [Description("Type name, or 'default' (default) for the framework default strategy")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return roots.Count == 0 ? NoSource : Supervision(roots, filter);
     }
 

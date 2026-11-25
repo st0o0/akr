@@ -26,6 +26,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="System.IO.Abstractions" />
     <PackageReference Include="Terp" />
+    <PackageReference Include="Akka.Hosting" />
   </ItemGroup>
 
   <ItemGroup>

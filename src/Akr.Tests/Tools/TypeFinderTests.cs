@@ -10,7 +10,7 @@ public sealed class TypeFinderTests : IDisposable
 
     public TypeFinderTests()
     {
-        _tools = new TypeTools(new FileService(new FileSystem()));
+        _tools = new TypeTools(new FileService(new FileSystem()), null!);
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 

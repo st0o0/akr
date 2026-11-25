@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Analysis;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,20 +12,21 @@ namespace Akr.Tools;
 public sealed partial class HostingTools
 {
     private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
 
-    public HostingTools(FileService fileService)
+    public HostingTools(FileService fileService, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
     }
 
     [McpServerTool(Name = "hosting_extensions"), Description("Search for With*/Add* extension methods in Akka.Hosting source.")]
     public async Task<string> SearchExtensionsAsync(
-        GitHubClient github,
         [Description("Optional keyword to filter by file path (e.g. Persistence, Cluster)")] string? filter = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return Format(FindExtensions(roots, filter), filter);
     }
 
@@ -54,12 +56,11 @@ public sealed partial class HostingTools
 
     [McpServerTool(Name = "config_reference"), Description("Look up HOCON config defaults from Akka.NET reference.conf files.")]
     public async Task<string> LookupConfigAsync(
-        GitHubClient github,
         [Description("HOCON path to filter (e.g. akka.persistence, akka.remote). Omit for all config.")] string? path = null,
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
         CancellationToken cancellationToken = default)
     {
-        var roots = await github.EnsureAllSourcesForVersionAsync(version, cancellationToken);
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
         return FindConfig(roots, path);
     }
 

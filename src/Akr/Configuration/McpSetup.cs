@@ -1,5 +1,7 @@
 using System.IO.Abstractions;
+using Akka.Hosting;
 using Akr.Analysis;
+using Akr.Pipelines;
 using Akr.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Terp.Hosting;
@@ -20,6 +22,11 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton(TimeProvider.System);
 
         services.Configure<AkrOptions>(AkrOptions.BindFromEnvironment());
+
+        services.AddAkka("akr", (builder, _) => { });
+
+        services.AddSingleton<SourcePipeline>();
+        services.AddSingleton<DocsPipeline>();
 
         services.AddHostedService<ProjectContextInitializer>();
 

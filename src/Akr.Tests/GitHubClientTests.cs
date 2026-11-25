@@ -1,7 +1,6 @@
 using System.Net;
 using Akr.Analysis;
 using Akr.Configuration;
-using Akr.Registry;
 using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -136,28 +135,6 @@ public sealed class GitHubClientTests : IDisposable
         Assert.Equal("1.5.75", v1);
         Assert.Equal("1.5.75", v2);
         Assert.Equal(1, handler.CallCount);
-    }
-
-    [Fact]
-    public async Task EnsureAllSourcesAsync_resolves_each_unique_repo()
-    {
-        var uniqueRepos = RepoRegistry.GetAllRepos().Distinct(StringComparer.Ordinal).ToList();
-        foreach (var repo in uniqueRepos)
-        {
-            Directory.CreateDirectory(Path.Combine(_cacheRoot, repo[(repo.IndexOf('/') + 1)..], "2.0.0"));
-        }
-
-        var handler = new FakeHandler(req => req.RequestUri!.Host == "api.github.com"
-            ? (HttpStatusCode.OK, JsonBody(new { tag_name = "2.0.0" }))
-            : (HttpStatusCode.NotFound, []));
-
-        var client = CreateClient(handler);
-
-        var roots = await client.EnsureAllSourcesAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(uniqueRepos.Count, roots.Count);
-        Assert.Equal(uniqueRepos.Count, handler.CountFor("api.github.com"));
-        Assert.Equal(0, handler.CountFor("github.com"));
     }
 
     private GitHubClient CreateClient(HttpMessageHandler handler) =>

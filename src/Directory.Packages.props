@@ -12,6 +12,9 @@
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
   </ItemGroup>
+  <ItemGroup Label="Akka">
+    <PackageVersion Include="Akka.Hosting" Version="1.6.0-beta7" />
+  </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="23.1.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />

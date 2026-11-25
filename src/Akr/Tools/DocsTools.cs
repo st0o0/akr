@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using Akr.Analysis;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -9,20 +10,20 @@ namespace Akr.Tools;
 public sealed class DocsTools
 {
     private readonly DocsIndex _docsIndex;
+    private readonly DocsPipeline _docsPipeline;
 
-    public DocsTools(DocsIndex docsIndex)
+    public DocsTools(DocsIndex docsIndex, DocsPipeline docsPipeline)
     {
         _docsIndex = docsIndex;
+        _docsPipeline = docsPipeline;
     }
 
     [McpServerTool(Name = "docs_search"), Description("Search Akka.NET documentation for a topic or question. Returns relevant excerpts from getakka.net docs.")]
     public async Task<string> SearchDocsAsync(
-        GitHubClient github,
         [Description("Search query (e.g. 'cluster sharding', 'ask pattern', 'persistence')")] string query,
         CancellationToken cancellationToken = default)
     {
-        var docsRoot = await github.EnsureDocsAsync(cancellationToken);
-        _docsIndex.Build(docsRoot);
+        await _docsPipeline.BuildIndexAsync(cancellationToken);
 
         var results = _docsIndex.Search(query);
         if (results.Count == 0)
@@ -48,13 +49,11 @@ public sealed class DocsTools
 
     [McpServerTool(Name = "docs_example"), Description("Find code examples from Akka.NET documentation for a given topic.")]
     public async Task<string> FindExamplesAsync(
-        GitHubClient github,
         [Description("Topic to find examples for (e.g. 'ask pattern', 'persistence', 'cluster sharding')")] string topic,
         [Description("Optional language filter (e.g. 'csharp', 'hocon'). Omit for all languages.")] string? language = null,
         CancellationToken cancellationToken = default)
     {
-        var docsRoot = await github.EnsureDocsAsync(cancellationToken);
-        _docsIndex.Build(docsRoot);
+        await _docsPipeline.BuildIndexAsync(cancellationToken);
 
         var examples = _docsIndex.FindExamples(topic, language);
         if (examples.Count == 0)

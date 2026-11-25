@@ -10,7 +10,7 @@ public sealed class EcosystemToolsTests : IDisposable
 
     public EcosystemToolsTests()
     {
-        _tools = new EcosystemTools(new FileService(new FileSystem()));
+        _tools = new EcosystemTools(new FileService(new FileSystem()), null!);
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 

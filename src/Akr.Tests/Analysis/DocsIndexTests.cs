@@ -1,19 +1,13 @@
-using System.IO.Abstractions;
 using Akr.Analysis;
-using Akr.Tools;
 
 namespace Akr.Tests.Analysis;
 
 public sealed class DocsIndexTests : IDisposable
 {
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), $"akr-docs-test-{Guid.NewGuid()}");
-    private readonly DocsIndex _index;
+    private readonly DocsIndex _index = new();
 
-    public DocsIndexTests()
-    {
-        Directory.CreateDirectory(_tempDir);
-        _index = new DocsIndex(new FileService(new FileSystem()));
-    }
+    public DocsIndexTests() => Directory.CreateDirectory(_tempDir);
 
     public void Dispose()
     {
@@ -26,13 +20,30 @@ public sealed class DocsIndexTests : IDisposable
     private void WriteDoc(string name, string content) =>
         File.WriteAllText(Path.Combine(_tempDir, name), content);
 
+    private void BuildIndex(params string[] fileNames)
+    {
+        var entries = new List<DocsEntry>();
+        foreach (var name in fileNames)
+        {
+            var fullPath = Path.Combine(_tempDir, name);
+            entries.Add(new DocsEntry(
+                FilePath: fullPath,
+                RelativePath: name,
+                FileName: Path.GetFileNameWithoutExtension(fullPath),
+                Directory: "",
+                Content: File.ReadAllText(fullPath)));
+        }
+
+        _index.AddEntries(entries);
+    }
+
     [Fact]
     public void Build_indexes_markdown_files()
     {
         WriteDoc("Cluster Sharding.md", "# Cluster Sharding\n\nIntro text.\n\n## Entities\n\nDetails.\n");
         WriteDoc("Remoting.md", "# Remoting\n\nSome remoting text.\n");
 
-        _index.Build(_tempDir);
+        BuildIndex("Cluster Sharding.md", "Remoting.md");
         var results = _index.Search("Sharding");
 
         var result = Assert.Single(results);
@@ -47,7 +58,7 @@ public sealed class DocsIndexTests : IDisposable
         WriteDoc("Persistence.md", "# Overview\n\nNothing special.\n");
         WriteDoc("Other.md", "# Other\n\nThis mentions persistence in the body only.\n");
 
-        _index.Build(_tempDir);
+        BuildIndex("Persistence.md", "Other.md");
         var results = _index.Search("persistence");
 
         Assert.Equal(2, results.Count);
@@ -60,7 +71,7 @@ public sealed class DocsIndexTests : IDisposable
     {
         WriteDoc("Remoting.md", "# Remoting\n\nSome text.\n");
 
-        _index.Build(_tempDir);
+        BuildIndex("Remoting.md");
 
         Assert.Empty(_index.Search("zzzznotfound"));
     }
@@ -70,7 +81,7 @@ public sealed class DocsIndexTests : IDisposable
     {
         WriteDoc("Streams.md", "# Streams\n\n```csharp\nvar x = 1;\n```\n");
 
-        _index.Build(_tempDir);
+        BuildIndex("Streams.md");
         var examples = _index.FindExamples("Streams");
 
         var example = Assert.Single(examples);
@@ -84,7 +95,7 @@ public sealed class DocsIndexTests : IDisposable
     {
         WriteDoc("Config.md", "# Config\n\n```csharp\nvar x = 1;\n```\n\n```hocon\nakka.loglevel = DEBUG\n```\n");
 
-        _index.Build(_tempDir);
+        BuildIndex("Config.md");
         var examples = _index.FindExamples("Config", "hocon");
 
         var example = Assert.Single(examples);

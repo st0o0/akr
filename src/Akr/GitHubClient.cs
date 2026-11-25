@@ -27,8 +27,6 @@ public sealed class GitHubClient
     private readonly TimeProvider _timeProvider;
     private readonly int _maxCachedVersions;
     private readonly Dictionary<string, string> _latestVersions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IReadOnlyList<string>> _cachedRootsByVersion = new(StringComparer.Ordinal);
-    private IReadOnlyList<string>? _cachedRoots;
 
     public GitHubClient(
         HttpClient httpClient,
@@ -241,55 +239,6 @@ public sealed class GitHubClient
         CleanupOldVersions(repoName);
 
         return targetPath;
-    }
-
-    public async Task<IReadOnlyList<string>> EnsureAllSourcesAsync(CancellationToken cancellationToken = default)
-    {
-        if (_cachedRoots is not null)
-        {
-            return _cachedRoots;
-        }
-
-        var roots = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var repo in RepoRegistry.GetAllRepos())
-        {
-            if (seen.Add(repo))
-            {
-                roots.Add(await EnsureSourceAsync(repo, cancellationToken));
-            }
-        }
-
-        _cachedRoots = roots;
-        return roots;
-    }
-
-    public async Task<IReadOnlyList<string>> EnsureAllSourcesForVersionAsync(string? version, CancellationToken cancellationToken = default)
-    {
-        if (version is null)
-        {
-            return await EnsureAllSourcesAsync(cancellationToken);
-        }
-
-        if (_cachedRootsByVersion.TryGetValue(version, out var cached))
-        {
-            return cached;
-        }
-
-        var roots = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var repo in RepoRegistry.GetAllRepos())
-        {
-            if (seen.Add(repo))
-            {
-                roots.Add(await EnsureSourceForVersionAsync(repo, version, cancellationToken));
-            }
-        }
-
-        _cachedRootsByVersion[version] = roots;
-        return roots;
     }
 
     public async Task<string> ResolveLatestAsync(string repo, CancellationToken cancellationToken = default)

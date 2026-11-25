@@ -1,48 +1,28 @@
 using System.Text;
-using Akr.Tools;
 
 namespace Akr.Analysis;
 
 public sealed class DocsIndex
 {
-    private readonly FileService _fileService;
-    private readonly List<DocsEntry> _entries = [];
+    private readonly List<IndexedDocsEntry> _entries = [];
     private bool _built;
 
-    public DocsIndex(FileService fileService)
+    public bool IsBuilt => _built;
+
+    public void AddEntries(IEnumerable<DocsEntry> entries)
     {
-        _fileService = fileService;
-    }
-
-    public void Build(string docsRoot)
-    {
-        if (_built)
+        foreach (var entry in entries)
         {
-            return;
-        }
+            var headings = ExtractHeadings(entry.Content);
+            var codeBlocks = ExtractCodeBlocks(entry.Content);
 
-        var docsPath = _fileService.Combine(docsRoot, "src", "docs");
-        if (!_fileService.DirectoryExists(docsPath))
-        {
-            docsPath = docsRoot;
-        }
-
-        foreach (var (fullPath, relativePath) in _fileService.EnumerateFiles([docsPath], "*.md"))
-        {
-            var fileName = Path.GetFileNameWithoutExtension(fullPath);
-            var directory = Path.GetDirectoryName(relativePath)?.Replace('\\', '/') ?? "";
-
-            var content = Encoding.UTF8.GetString(_fileService.ReadAllBytes(fullPath));
-            var headings = ExtractHeadings(content);
-            var codeBlocks = ExtractCodeBlocks(content);
-
-            _entries.Add(new DocsEntry(
-                FilePath: fullPath,
-                RelativePath: relativePath,
-                FileName: fileName,
-                Directory: directory,
+            _entries.Add(new IndexedDocsEntry(
+                FilePath: entry.FilePath,
+                RelativePath: entry.RelativePath,
+                FileName: entry.FileName,
+                Directory: entry.Directory,
                 Headings: headings,
-                Content: content,
+                Content: entry.Content,
                 CodeBlocks: codeBlocks));
         }
 
@@ -52,7 +32,7 @@ public sealed class DocsIndex
     public IReadOnlyList<DocsSearchResult> Search(string query, int maxResults = 5)
     {
         var queryTerms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var scored = new List<(DocsEntry Entry, int Score)>();
+        var scored = new List<(IndexedDocsEntry Entry, int Score)>();
 
         foreach (var entry in _entries)
         {
@@ -201,7 +181,7 @@ public sealed class DocsIndex
             : truncated + "\n[truncated]";
     }
 
-    private sealed record DocsEntry(
+    private sealed record IndexedDocsEntry(
         string FilePath,
         string RelativePath,
         string FileName,
@@ -215,6 +195,13 @@ public sealed class DocsIndex
         string Code,
         string? PrecedingHeading);
 }
+
+public sealed record DocsEntry(
+    string FilePath,
+    string RelativePath,
+    string FileName,
+    string Directory,
+    string Content);
 
 public sealed record DocsSearchResult(
     string FileName,

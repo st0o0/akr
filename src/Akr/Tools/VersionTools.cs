@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using Akr.Analysis;
 using Akr.Models;
+using Akr.Pipelines;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,16 +12,19 @@ public sealed class VersionTools
 {
     private readonly FileService _fileService;
     private readonly DocsIndex _docsIndex;
+    private readonly SourcePipeline _sourcePipeline;
+    private readonly DocsPipeline _docsPipeline;
 
-    public VersionTools(FileService fileService, DocsIndex docsIndex)
+    public VersionTools(FileService fileService, DocsIndex docsIndex, SourcePipeline sourcePipeline, DocsPipeline docsPipeline)
     {
         _fileService = fileService;
         _docsIndex = docsIndex;
+        _sourcePipeline = sourcePipeline;
+        _docsPipeline = docsPipeline;
     }
 
     [McpServerTool(Name = "source_diff"), Description("Compare a type's source code or config between two Akka.NET versions. Returns a unified diff.")]
     public async Task<string> SourceDiffAsync(
-        GitHubClient github,
         [Description("Type name to diff (e.g. 'Throttle', 'ActorBase'). Mutually exclusive with configPath.")] string? typeName = null,
         [Description("Config path to diff (e.g. 'akka.cluster.sharding'). Mutually exclusive with typeName.")] string? configPath = null,
         [Description("First version to compare (e.g. '1.5.0')")] string? versionA = null,
@@ -37,8 +41,8 @@ public sealed class VersionTools
             return "Either typeName or configPath is required.";
         }
 
-        var rootsA = await github.EnsureAllSourcesForVersionAsync(versionA, cancellationToken);
-        var rootsB = await github.EnsureAllSourcesForVersionAsync(versionB, cancellationToken);
+        var rootsA = await _sourcePipeline.EnsureAllForVersionAsync(versionA, cancellationToken);
+        var rootsB = await _sourcePipeline.EnsureAllForVersionAsync(versionB, cancellationToken);
 
         if (typeName is not null)
         {
@@ -50,14 +54,13 @@ public sealed class VersionTools
 
     [McpServerTool(Name = "migration_guide"), Description("Generate a migration guide for upgrading between two Akka.NET versions. Combines changelog, config changes, and relevant documentation.")]
     public async Task<string> MigrationGuideAsync(
-        GitHubClient github,
         [Description("Version to migrate from (e.g. '1.5.0')")] string fromVersion,
         [Description("Version to migrate to (e.g. '1.5.74')")] string toVersion,
         [Description("Optional area to focus on (e.g. 'persistence', 'cluster', 'streams')")] string? area = null,
         CancellationToken cancellationToken = default)
     {
-        var rootsFrom = await github.EnsureAllSourcesForVersionAsync(fromVersion, cancellationToken);
-        var rootsTo = await github.EnsureAllSourcesForVersionAsync(toVersion, cancellationToken);
+        var rootsFrom = await _sourcePipeline.EnsureAllForVersionAsync(fromVersion, cancellationToken);
+        var rootsTo = await _sourcePipeline.EnsureAllForVersionAsync(toVersion, cancellationToken);
 
         var sb = new StringBuilder();
         sb.AppendLine($"# Migration Guide: {fromVersion} → {toVersion}");
@@ -83,8 +86,7 @@ public sealed class VersionTools
 
         try
         {
-            var docsRoot = await github.EnsureDocsAsync(cancellationToken);
-            _docsIndex.Build(docsRoot);
+            await _docsPipeline.BuildIndexAsync(cancellationToken);
             var searchQuery = area ?? "migration upgrade";
             var docs = _docsIndex.Search(searchQuery, maxResults: 3);
             if (docs.Count > 0)

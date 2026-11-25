@@ -10,7 +10,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
 
     public ConfigReferenceToolTests()
     {
-        _tools = new HostingTools(new FileService(new FileSystem()));
+        _tools = new HostingTools(new FileService(new FileSystem()), null!);
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 

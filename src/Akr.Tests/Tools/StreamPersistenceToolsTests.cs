@@ -10,7 +10,7 @@ public sealed class StreamPersistenceToolsTests : IDisposable
 
     public StreamPersistenceToolsTests()
     {
-        _tools = new StreamPersistenceTools(new FileService(new FileSystem()));
+        _tools = new StreamPersistenceTools(new FileService(new FileSystem()), null!);
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 
