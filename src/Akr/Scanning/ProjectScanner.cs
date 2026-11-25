@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Xml.Linq;
+using Akr.Configuration;
 using Akr.Registry;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Akr.Scanning;
 
@@ -14,15 +16,16 @@ public sealed partial class ProjectScanner
     private readonly ILogger<ProjectScanner> _logger;
     private readonly ConcurrentDictionary<string, ProjectScanResult> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public ProjectScanner(FileService fileService, ILogger<ProjectScanner> logger)
+    public ProjectScanner(FileService fileService, ILogger<ProjectScanner> logger, IOptions<AkrOptions> options)
     {
         _fileService = fileService;
         _logger = logger;
+        Initialize(options.Value.ProjectPath);
     }
 
     public ProjectScanResult Current { get; set; } = ProjectScanResult.Empty;
 
-    public void Initialize(string? projectPath)
+    private void Initialize(string? projectPath)
     {
         if (!string.IsNullOrEmpty(projectPath))
         {

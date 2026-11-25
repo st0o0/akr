@@ -4,7 +4,7 @@ using Akr.Scanning;
 using Akr.Source;
 using Akr.Tools;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
+
 using Terp.Hosting;
 
 namespace Akr.Configuration;
@@ -23,13 +23,7 @@ public sealed class McpSetup : ISetup<IServiceCollection>
 
         services.Configure<AkrOptions>(AkrOptions.BindFromEnvironment());
 
-        services.AddSingleton<ProjectScanner>(sp =>
-        {
-            var scanner = ActivatorUtilities.CreateInstance<ProjectScanner>(sp);
-            var options = sp.GetRequiredService<IOptions<AkrOptions>>().Value;
-            scanner.Initialize(options.ProjectPath);
-            return scanner;
-        });
+        services.AddSingleton<ProjectScanner>();
 
         services.AddAkka("akr", (builder, _) => { });
 
@@ -39,15 +33,13 @@ public sealed class McpSetup : ISetup<IServiceCollection>
 
         services.AddHttpClient<SourceFetcher>(client =>
         {
-            var version = typeof(McpSetup).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
-            client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{version}");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{VersionInfo.Version}");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         });
 
         services.AddHttpClient<VersionResolver>(client =>
         {
-            var version = typeof(McpSetup).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
-            client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{version}");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{VersionInfo.Version}");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         });
 

@@ -1,7 +1,9 @@
 using System.IO.Abstractions;
+using Akr.Configuration;
 using Akr.Scanning;
 using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Akr.Tests.Tools;
 
@@ -16,7 +18,7 @@ public sealed class ProjectContextToolsTests : IDisposable
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
         var fileService = new FileService(new FileSystem());
-        _scanner = new ProjectScanner(fileService, NullLogger<ProjectScanner>.Instance);
+        _scanner = new ProjectScanner(fileService, NullLogger<ProjectScanner>.Instance, Options.Create(new AkrOptions()));
         _tools = new ProjectContextTools(_scanner, fileService);
     }
 
@@ -125,7 +127,7 @@ public sealed class ProjectContextResourcesTests : IDisposable
     public void GetContext_with_project_detected_returns_project_source()
     {
         var fileService = new FileService(new FileSystem());
-        var scanner = new ProjectScanner(fileService, NullLogger<ProjectScanner>.Instance);
+        var scanner = new ProjectScanner(fileService, NullLogger<ProjectScanner>.Instance, Options.Create(new AkrOptions()));
         scanner.Current = new ProjectScanResult(_testRoot, new Dictionary<string, string>
         {
             ["Akka"] = "1.5.75"
@@ -143,7 +145,7 @@ public sealed class ProjectContextResourcesTests : IDisposable
     public void GetContext_without_project_returns_latest_source()
     {
         var fileService = new FileService(new FileSystem());
-        var scanner = new ProjectScanner(fileService, NullLogger<ProjectScanner>.Instance);
+        var scanner = new ProjectScanner(fileService, NullLogger<ProjectScanner>.Instance, Options.Create(new AkrOptions()));
 
         var resources = new ProjectContextResources(scanner);
         var json = resources.GetContext();

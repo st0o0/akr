@@ -1,7 +1,9 @@
 using System.IO.Abstractions;
+using Akr.Configuration;
 using Akr.Registry;
 using Akr.Scanning;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Akr.Tests.Analysis;
 
@@ -16,7 +18,8 @@ public sealed class ProjectScannerTests : IDisposable
         Directory.CreateDirectory(_testRoot);
         _scanner = new ProjectScanner(
             new FileService(new FileSystem()),
-            NullLogger<ProjectScanner>.Instance);
+            NullLogger<ProjectScanner>.Instance,
+            Options.Create(new AkrOptions()));
     }
 
     public void Dispose()
