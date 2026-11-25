@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -10,7 +11,7 @@ public sealed class HostingExtensionsToolTests : IDisposable
 
     public HostingExtensionsToolTests()
     {
-        _tools = new HostingTools(new FileService(new FileSystem()), null!);
+        _tools = new HostingTools(new FileService(new FileSystem()), null!, new HoconScanner(new FileService(new FileSystem())));
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 

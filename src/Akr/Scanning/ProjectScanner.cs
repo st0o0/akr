@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Xml.Linq;
 using Akr.Registry;
-using Akr.Tools;
 using Microsoft.Extensions.Logging;
 
 namespace Akr.Scanning;
@@ -48,7 +47,8 @@ public sealed class ProjectScanner
                 break;
             }
 
-            if (stop is not null && string.Equals(_fileService.GetFullPath(current), stop, StringComparison.OrdinalIgnoreCase))
+            if (stop is not null &&
+                string.Equals(_fileService.GetFullPath(current), stop, StringComparison.OrdinalIgnoreCase))
             {
                 break;
             }
@@ -100,7 +100,7 @@ public sealed class ProjectScanner
         {
             var xml = XDocument.Parse(_fileService.ReadAllText(path));
             foreach (var el in xml.Descendants().Where(e =>
-                e.Name.LocalName.Equals("PackageVersion", StringComparison.OrdinalIgnoreCase)))
+                         e.Name.LocalName.Equals("PackageVersion", StringComparison.OrdinalIgnoreCase)))
             {
                 var include = el.Attribute("Include")?.Value;
                 var version = el.Attribute("Version")?.Value;
@@ -112,7 +112,7 @@ public sealed class ProjectScanner
         }
         catch (Exception ex) when (ex is IOException or System.Xml.XmlException)
         {
-            _logger.LogWarning("Failed to parse {Path}: {Error}", path, ex.Message);
+            _logger.LogWarning(ex, "Failed to parse {Path}: {Error}", path, ex.Message);
         }
     }
 
@@ -122,7 +122,7 @@ public sealed class ProjectScanner
         {
             var xml = XDocument.Parse(_fileService.ReadAllText(path));
             foreach (var el in xml.Descendants().Where(e =>
-                e.Name.LocalName.Equals("PackageReference", StringComparison.OrdinalIgnoreCase)))
+                         e.Name.LocalName.Equals("PackageReference", StringComparison.OrdinalIgnoreCase)))
             {
                 var include = el.Attribute("Include")?.Value;
                 var version = el.Attribute("Version")?.Value;
@@ -134,7 +134,7 @@ public sealed class ProjectScanner
         }
         catch (Exception ex) when (ex is IOException or System.Xml.XmlException)
         {
-            _logger.LogWarning("Failed to parse {Path}: {Error}", path, ex.Message);
+            _logger.LogWarning(ex, "Failed to parse {Path}: {Error}", path, ex.Message);
         }
     }
 
@@ -151,7 +151,7 @@ public sealed class ProjectScanner
         }
         catch (Exception ex) when (ex is IOException)
         {
-            _logger.LogWarning("Failed to enumerate csproj files in {Path}: {Error}", directory, ex.Message);
+            _logger.LogWarning(ex, "Failed to enumerate csproj files in {Path}: {Error}", directory, ex.Message);
         }
 
         return found;

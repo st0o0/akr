@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Scanning;
 using Akr.Source;
 using ModelContextProtocol.Server;
 
@@ -18,16 +19,11 @@ public sealed partial class SerializationTools
         _sourcePipeline = sourcePipeline;
     }
 
-    private const int MaxClassLines = 200;
-
     [GeneratedRegex(@"serialization-bindings\s*(=|\{|:)", RegexOptions.NonBacktracking)]
     private static partial Regex BindingsKeyRegex();
 
     [GeneratedRegex(@"^\s*""?([^""=\s]+)""?\s*=\s*""?([\w\-.]+)""?", RegexOptions.NonBacktracking)]
     private static partial Regex BindingLineRegex();
-
-    [GeneratedRegex(@"\b(?:class|record)\s+(\w+)[^{;]*?:\s*([^{;]*)", RegexOptions.NonBacktracking)]
-    private static partial Regex ClassWithBasesRegex();
 
     [GeneratedRegex(@"ISerializationManifest|\bManifest\s*\(|\bManifest\s*=|SerializerWithStringManifest|IWithManifest|const\s+string\s+\w*Manifest\w*\s*=", RegexOptions.NonBacktracking)]
     private static partial Regex ManifestRegex();
@@ -57,7 +53,7 @@ public sealed partial class SerializationTools
                     continue;
                 }
 
-                foreach (var line in CollectBlockLines(lines, i).Skip(1))
+                foreach (var line in TypeScanner.CollectBlockLines(lines, i).Skip(1))
                 {
                     var m = BindingLineRegex().Match(line);
                     if (m.Success)
@@ -113,7 +109,7 @@ public sealed partial class SerializationTools
             var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
-                var m = ClassWithBasesRegex().Match(lines[i]);
+                var m = TypeScanner.ClassWithBasesPattern().Match(lines[i]);
                 if (!m.Success
                     || !m.Groups[1].Value.Contains(name, StringComparison.OrdinalIgnoreCase)
                     || !IsSerializerBase(m.Groups[2].Value))
@@ -123,7 +119,7 @@ public sealed partial class SerializationTools
 
                 classNames.Add(m.Groups[1].Value);
                 sb.AppendLine($"--- {relative}:{i + 1} ---");
-                sb.AppendLine(string.Join('\n', CollectBlockLines(lines, i, MaxClassLines)));
+                sb.AppendLine(string.Join('\n', TypeScanner.CollectBlockLines(lines, i, TypeScanner.MaxClassLines)));
                 sb.AppendLine();
             }
         }
@@ -208,44 +204,4 @@ public sealed partial class SerializationTools
 
     // ---------- helpers ----------
 
-    private static List<string> CollectBlockLines(string[] lines, int start, int maxLines = int.MaxValue)
-    {
-        var collected = new List<string>();
-        var depth = 0;
-        var opened = false;
-
-        for (var i = start; i < lines.Length && collected.Count < maxLines; i++)
-        {
-            collected.Add(lines[i]);
-            foreach (var c in lines[i])
-            {
-                if (c == '#')
-                {
-                    break;
-                }
-
-                if (c == '{')
-                {
-                    depth++;
-                    opened = true;
-                }
-                else if (c == '}')
-                {
-                    depth--;
-                }
-            }
-
-            if (opened && depth <= 0)
-            {
-                break;
-            }
-
-            if (!opened && i > start + 3)
-            {
-                break;
-            }
-        }
-
-        return collected;
-    }
 }

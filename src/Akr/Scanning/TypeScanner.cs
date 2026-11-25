@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
-using Akr.Tools;
 
 namespace Akr.Scanning;
 
@@ -37,6 +36,84 @@ public sealed partial class TypeScanner
 
         _scanCache.TryAdd(key, list);
         return list;
+    }
+
+    public const int MaxClassLines = 200;
+
+    public static bool HasBase(string bases, string[] names)
+    {
+        foreach (var part in bases.Split(','))
+        {
+            var name = part.Trim();
+            var lt = name.IndexOf('<');
+            if (lt >= 0)
+            {
+                name = name[..lt];
+            }
+
+            if (names.Contains(name[(name.LastIndexOf('.') + 1)..]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static List<string> CollectBlockLines(string[] lines, int start, int maxLines = int.MaxValue)
+    {
+        var collected = new List<string>();
+        var depth = 0;
+        var opened = false;
+
+        for (var i = start; i < lines.Length && collected.Count < maxLines; i++)
+        {
+            collected.Add(lines[i]);
+            foreach (var c in lines[i])
+            {
+                if (c == '#')
+                {
+                    break;
+                }
+
+                if (c == '{')
+                {
+                    depth++;
+                    opened = true;
+                }
+                else if (c == '}')
+                {
+                    depth--;
+                }
+            }
+
+            if (opened && depth <= 0)
+            {
+                break;
+            }
+
+            if (!opened && i > start + 3)
+            {
+                break;
+            }
+        }
+
+        return collected;
+    }
+
+    public static string? ClassifyTestKit(string relative)
+    {
+        if (relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (relative.Contains("Akka.Hosting.TestKit", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Akka.Hosting.TestKit";
+        }
+
+        return relative.Contains("Akka.TestKit", StringComparison.OrdinalIgnoreCase) ? "Akka.TestKit" : null;
     }
 
     public static string ExtractBody(string content, int declIndex)
@@ -201,4 +278,26 @@ public sealed partial class TypeScanner
 
     [GeneratedRegex(@"\bwhere\b")]
     private static partial Regex WhereKeyword();
+
+
+    [GeneratedRegex(@"^\s*public\s+(?<sig>[^;{=]*\([^)]*\))", RegexOptions.NonBacktracking)]
+    public static partial Regex MethodSignaturePattern();
+
+    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
+    public static partial Regex WhitespacePattern();
+
+    [GeneratedRegex(@"<[^>]*>", RegexOptions.NonBacktracking)]
+    public static partial Regex XmlTagPattern();
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:virtual|static|async|override|sealed|new)\s+)*[\w<>\[\],.?]+\s+(\w+)\s*(?:<[^>(]*>)?\(", RegexOptions.NonBacktracking)]
+    public static partial Regex PublicMethodNamePattern();
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*class\s+(\w+)(?:<[^>]*>)?(?:\s*:\s*([^{\r\n]*))?", RegexOptions.NonBacktracking)]
+    public static partial Regex PublicClassPattern();
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*(?:class|interface|record|struct)\s+(\w+)", RegexOptions.NonBacktracking)]
+    public static partial Regex PublicTypePattern();
+
+    [GeneratedRegex(@"\b(?:class|record)\s+(\w+)[^{;]*?:\s*([^{;]*)", RegexOptions.NonBacktracking)]
+    public static partial Regex ClassWithBasesPattern();
 }

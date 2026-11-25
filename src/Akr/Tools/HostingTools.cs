@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
+using Akr.Scanning;
 using Akr.Source;
 using ModelContextProtocol.Server;
 
@@ -12,11 +13,13 @@ public sealed partial class HostingTools
 {
     private readonly FileService _fileService;
     private readonly SourcePipeline _sourcePipeline;
+    private readonly HoconScanner _hoconScanner;
 
-    public HostingTools(FileService fileService, SourcePipeline sourcePipeline)
+    public HostingTools(FileService fileService, SourcePipeline sourcePipeline, HoconScanner hoconScanner)
     {
         _fileService = fileService;
         _sourcePipeline = sourcePipeline;
+        _hoconScanner = hoconScanner;
     }
 
     [McpServerTool(Name = "hosting_extensions"), Description("Search for With*/Add* extension methods in Akka.Hosting source.")]
@@ -126,12 +129,6 @@ public sealed partial class HostingTools
         return sig[..end];
     }
 
-    [GeneratedRegex(@"public\s+static\s+\S+\s+(?<name>(With|Add)\w+)\s*[\(<]", RegexOptions.NonBacktracking)]
-    private static partial Regex NamedMethodPattern();
-
-    [GeneratedRegex(@"\bakka(?:\.[A-Za-z0-9_\-]+)+", RegexOptions.NonBacktracking)]
-    private static partial Regex HoconKeyPattern();
-
     [GeneratedRegex(
         @"(must|should|needs? to|has to)\s+be\s+(called|registered|configured|invoked|set)|(before|after)\s+(calling|registering|configuring)|call(ed)?\s+(this\s+)?(before|after)|requires?\s+(that\s+)?\w*(With|Add)\w+|order\s+(matters|of)",
         RegexOptions.NonBacktracking | RegexOptions.IgnoreCase)]
@@ -188,74 +185,23 @@ public sealed partial class HostingTools
         return FindStartupOrder(roots, filter);
     }
 
-    public Dictionary<string, string?> CollectConfig(IEnumerable<string> roots)
-    {
-        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-        foreach (var (full, _) in _fileService.EnumerateConfigFiles(roots))
-        {
-            foreach (var entry in ConfigTools.ParseConfig(_fileService.ReadAllLines(full)))
-            {
-                result[entry.Path] = entry.Value;
-            }
-        }
-
-        return result;
-    }
-
-    // ---- hosting mapping ----
-
-    public Dictionary<string, SortedSet<string>> CollectHostingKeys(IEnumerable<string> roots)
-    {
-        var map = new Dictionary<string, SortedSet<string>>(StringComparer.Ordinal);
-        foreach (var (full, _) in _fileService.EnumerateFiles(roots, "*.cs"))
-        {
-            string? current = null;
-            foreach (var line in _fileService.ReadLines(full))
-            {
-                var m = NamedMethodPattern().Match(line);
-                if (m.Success)
-                {
-                    current = m.Groups["name"].Value;
-                }
-
-                if (current is null)
-                {
-                    continue;
-                }
-
-                foreach (Match k in HoconKeyPattern().Matches(line))
-                {
-                    if (!map.TryGetValue(current, out var set))
-                    {
-                        set = new SortedSet<string>(StringComparer.Ordinal);
-                        map[current] = set;
-                    }
-
-                    set.Add(k.Value);
-                }
-            }
-        }
-
-        return map;
-    }
-
     public string MapQuery(IEnumerable<string> roots, string query)
     {
         var rootList = roots.ToList();
-        var scannedMap = CollectHostingKeys(rootList);
+        var scannedMap = _hoconScanner.CollectHostingKeys(rootList);
         var merged = MergeWithFallback(scannedMap);
         var q = query.Trim();
         var sb = new StringBuilder();
 
         if (q.StartsWith("akka", StringComparison.Ordinal))
         {
-            var config = CollectConfig(rootList);
+            var config = _hoconScanner.CollectConfig(rootList);
             sb.AppendLine("| HOCON path | Hosting method |");
             sb.AppendLine("|---|---|");
             var rows = 0;
             foreach (var (method, keys) in merged.OrderBy(kv => kv.Key, StringComparer.Ordinal))
             {
-                foreach (var key in keys.Where(k => PathMatches(k, q)))
+                foreach (var key in keys.Where(k => HoconParser.PathMatches(k, q)))
                 {
                     var inRef = config.Keys.Any(c => c == key || c.StartsWith(key + ".", StringComparison.Ordinal))
                         ? string.Empty
@@ -307,11 +253,6 @@ public sealed partial class HostingTools
 
         return merged;
     }
-
-    private static bool PathMatches(string key, string query) =>
-        key == query
-        || key.StartsWith(query + ".", StringComparison.Ordinal)
-        || query.StartsWith(key + ".", StringComparison.Ordinal);
 
     // ---- startup order ----
 
@@ -380,15 +321,6 @@ public sealed partial class HostingTools
         ("Register services and actors", new Regex(@"\b(?:WithActors|AddAkka|WithActorRegistry)\b", RegexOptions.NonBacktracking)),
         ("Props with DI", new Regex(@"DependencyResolver|\bPropsFor\b|GetRequiredService|\bProps<|\.Props\(", RegexOptions.NonBacktracking))
     ];
-
-    [GeneratedRegex(@"\bpublic\s+(?:(?:virtual|static|async|override|sealed|new)\s+)*[\w<>\[\],.?]+\s+(\w+)\s*(?:<[^>(]*>)?\(", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicMethodRegex();
-
-    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*class\s+(\w+)(?:<[^>]*>)?(?:\s*:\s*([^{\r\n]*))?", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicClassRegex();
-
-    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
-    private static partial Regex WhitespaceRegex();
 
     // ---------- hosting_di_patterns ----------
 
@@ -470,14 +402,14 @@ public sealed partial class HostingTools
 
         foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            var package = ClassifyTestKit(relative);
+            var package = TypeScanner.ClassifyTestKit(relative);
             if (package is null)
             {
                 continue;
             }
 
             var text = _fileService.ReadAllText(full);
-            var assertions = PublicMethodRegex().Matches(text)
+            var assertions = TypeScanner.PublicMethodNamePattern().Matches(text)
                 .Select(m => m.Groups[1].Value)
                 .Where(n => n.StartsWith("Expect", StringComparison.Ordinal)
                     || n.StartsWith("Assert", StringComparison.Ordinal)
@@ -486,10 +418,10 @@ public sealed partial class HostingTools
                 .Order(StringComparer.Ordinal)
                 .ToList();
 
-            foreach (Match m in PublicClassRegex().Matches(text))
+            foreach (Match m in TypeScanner.PublicClassPattern().Matches(text))
             {
                 var baseType = m.Groups[2].Success && m.Groups[2].Value.Trim().Length > 0
-                    ? WhitespaceRegex().Replace(m.Groups[2].Value, " ").Trim()
+                    ? TypeScanner.WhitespacePattern().Replace(m.Groups[2].Value, " ").Trim()
                     : "-";
                 rows.Add((package, m.Groups[1].Value, baseType, assertions.Count == 0 ? "-" : string.Join(", ", assertions)));
             }
@@ -511,18 +443,4 @@ public sealed partial class HostingTools
         return sb.ToString();
     }
 
-    private static string? ClassifyTestKit(string relative)
-    {
-        if (relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (relative.Contains("Akka.Hosting.TestKit", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Akka.Hosting.TestKit";
-        }
-
-        return relative.Contains("Akka.TestKit", StringComparison.OrdinalIgnoreCase) ? "Akka.TestKit" : null;
-    }
 }

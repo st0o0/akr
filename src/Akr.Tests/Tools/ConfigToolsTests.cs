@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -12,8 +13,8 @@ public sealed class ConfigToolsTests : IDisposable
     public ConfigToolsTests()
     {
         var fs = new FileService(new FileSystem());
-        _tools = new ConfigTools(fs, null!);
-        _hosting = new HostingTools(fs, null!);
+        _tools = new ConfigTools(fs, null!, new HoconScanner(fs));
+        _hosting = new HostingTools(fs, null!, new HoconScanner(fs));
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 
@@ -55,7 +56,7 @@ public sealed class ConfigToolsTests : IDisposable
     [Fact]
     public void ParseConfig_builds_full_paths()
     {
-        var entries = ConfigTools.ParseConfig(File.ReadAllLines(Path.Combine(_root, "src", "reference.conf")));
+        var entries = HoconParser.ParseConfig(File.ReadAllLines(Path.Combine(_root, "src", "reference.conf")));
         var paths = entries.Select(e => e.Path).ToList();
 
         Assert.Contains("akka.actor.provider", paths);
@@ -130,7 +131,7 @@ public sealed class ConfigToolsTests : IDisposable
     [Fact]
     public void DiffConfig_against_empty_lists_all_keys_as_added()
     {
-        var current = _tools.CollectConfig([_root]);
+        var current = new HoconScanner(new FileService(new FileSystem())).CollectConfig([_root]);
         var diff = ConfigTools.DiffConfig(new Dictionary<string, string?>(), current);
 
         Assert.Equal(current.Count, diff.Added.Count);

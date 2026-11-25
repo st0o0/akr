@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -10,7 +11,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
 
     public ConfigReferenceToolTests()
     {
-        _tools = new ConfigTools(new FileService(new FileSystem()), null!);
+        _tools = new ConfigTools(new FileService(new FileSystem()), null!, new HoconScanner(new FileService(new FileSystem())));
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 
@@ -79,7 +80,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     public void Extractor_returns_exact_block()
     {
         var lines = File.ReadAllLines(Path.Combine(_testRoot, "src/core/Akka/reference.conf"));
-        var block = ConfigTools.ExtractHoconBlock(lines, "akka.actor.default-dispatcher");
+        var block = HoconParser.ExtractHoconBlock(lines, "akka.actor.default-dispatcher");
 
         Assert.NotNull(block);
         Assert.StartsWith("        default-dispatcher {", block);
@@ -91,7 +92,7 @@ public sealed class ConfigReferenceToolTests : IDisposable
     [Fact]
     public void Extractor_handles_dotted_key_on_one_line()
     {
-        var block = ConfigTools.ExtractHoconBlock(["akka.remote {", "  port = 1", "}", "x = 2"], "akka.remote");
+        var block = HoconParser.ExtractHoconBlock(["akka.remote {", "  port = 1", "}", "x = 2"], "akka.remote");
 
         Assert.Equal("akka.remote {\n  port = 1\n}", block);
     }

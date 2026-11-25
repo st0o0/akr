@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
+using Akr.Scanning;
 using Akr.Source;
 using ModelContextProtocol.Server;
 
@@ -34,20 +35,11 @@ public sealed partial class PersistenceTools
     [GeneratedRegex(@"class\s*=\s*""(?<class>[^""]+)""", RegexOptions.NonBacktracking)]
     private static partial Regex ConfigClassPattern();
 
-    [GeneratedRegex(@"^\s*public\s+(?<sig>[^;{=]*\([^)]*\))", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicMethodPattern();
-
     [GeneratedRegex(@"event-adapters\s*\{[^}]*\}|event-adapter-bindings\s*\{[^}]*\}", RegexOptions.NonBacktracking)]
     private static partial Regex AdapterConfigPattern();
 
     [GeneratedRegex(@"\bI\w*Query\b", RegexOptions.NonBacktracking)]
     private static partial Regex QueryTypePattern();
-
-    [GeneratedRegex(@"<[^>]*>", RegexOptions.NonBacktracking)]
-    private static partial Regex XmlTag();
-
-    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
-    private static partial Regex Whitespace();
 
     [McpServerTool(Name = "journal_plugins"), Description("Catalog Akka.Persistence journal plugins with file paths and config sections.")]
     public async Task<string> JournalPluginsAsync(
@@ -93,7 +85,7 @@ public sealed partial class PersistenceTools
             foreach (Match m in ClassPattern().Matches(_fileService.ReadAllText(file.Full)))
             {
                 var bases = m.Groups["bases"].Value.Trim();
-                if (HasBase(bases, baseNames))
+                if (TypeScanner.HasBase(bases, baseNames))
                 {
                     var isAbstract = m.Groups["mods"].Value.Contains("abstract", StringComparison.Ordinal);
                     list.Add(new ClassInfo(m.Groups["name"].Value, file.Relative, bases, isAbstract));
@@ -205,26 +197,6 @@ public sealed partial class PersistenceTools
         }
 
         return sb.Length == 0 ? "No event adapters found." : sb.ToString();
-    }
-
-    private static bool HasBase(string bases, string[] names)
-    {
-        foreach (var part in bases.Split(','))
-        {
-            var name = part.Trim();
-            var lt = name.IndexOf('<');
-            if (lt >= 0)
-            {
-                name = name[..lt];
-            }
-
-            if (names.Contains(name[(name.LastIndexOf('.') + 1)..]))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static string SimpleClassName(string typeSpec)

@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
@@ -17,7 +18,7 @@ public sealed class EcosystemToolsTests : IDisposable
         _serialization = new SerializationTools(fs, null!);
         _cluster = new ClusterTools(fs, null!);
         _testKit = new TestKitTools(fs, null!);
-        _hosting = new HostingTools(fs, null!);
+        _hosting = new HostingTools(fs, null!, new HoconScanner(fs));
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 

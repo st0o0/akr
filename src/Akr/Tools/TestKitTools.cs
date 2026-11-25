@@ -1,13 +1,13 @@
 using System.ComponentModel;
 using System.Text;
-using System.Text.RegularExpressions;
+using Akr.Scanning;
 using Akr.Source;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
 
 [McpServerToolType]
-public sealed partial class TestKitTools
+public sealed class TestKitTools
 {
     private readonly FileService _fileService;
     private readonly SourcePipeline _sourcePipeline;
@@ -16,30 +16,6 @@ public sealed partial class TestKitTools
     {
         _fileService = fileService;
         _sourcePipeline = sourcePipeline;
-    }
-
-    [GeneratedRegex(@"\bpublic\s+(?:(?:virtual|static|async|override|sealed|new)\s+)*[\w<>\[\],.?]+\s+(\w+)\s*(?:<[^>(]*>)?\(", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicMethodRegex();
-
-    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*class\s+(\w+)(?:<[^>]*>)?(?:\s*:\s*([^{\r\n]*))?", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicClassRegex();
-
-    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*(?:class|interface|record|struct)\s+(\w+)", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicTypeRegex();
-
-    private static string? ClassifyTestKit(string relative)
-    {
-        if (relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (relative.Contains("Akka.Hosting.TestKit", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Akka.Hosting.TestKit";
-        }
-
-        return relative.Contains("Akka.TestKit", StringComparison.OrdinalIgnoreCase) ? "Akka.TestKit" : null;
     }
 
     // ---------- testkit_helpers ----------
@@ -60,7 +36,7 @@ public sealed partial class TestKitTools
 
         foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            if (ClassifyTestKit(relative) is null)
+            if (TypeScanner.ClassifyTestKit(relative) is null)
             {
                 continue;
             }
@@ -68,14 +44,14 @@ public sealed partial class TestKitTools
             var currentType = _fileService.GetFileNameWithoutExtension(relative);
             foreach (var line in _fileService.ReadAllLines(full))
             {
-                var t = PublicTypeRegex().Match(line);
+                var t = TypeScanner.PublicTypePattern().Match(line);
                 if (t.Success)
                 {
                     currentType = t.Groups[1].Value;
                     continue;
                 }
 
-                var m = PublicMethodRegex().Match(line);
+                var m = TypeScanner.PublicMethodNamePattern().Match(line);
                 if (!m.Success)
                 {
                     continue;

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using Akr.Scanning;
 using Akr.Source;
 using ModelContextProtocol.Server;
 
@@ -18,7 +19,6 @@ public sealed partial class ClusterTools
         _sourcePipeline = sourcePipeline;
     }
 
-    private const int MaxClassLines = 200;
     private const int MaxMatchesPerCategory = 15;
 
     private static readonly string[] _clusterLifecycle =
@@ -37,23 +37,14 @@ public sealed partial class ClusterTools
         ["MemberRemoved"] = "Removed"
     };
 
-    [GeneratedRegex(@"\b(?:class|record)\s+(\w+)[^{;]*?:\s*([^{;]*)", RegexOptions.NonBacktracking)]
-    private static partial Regex ClassWithBasesRegex();
-
     [GeneratedRegex(@"\binterface\s+(I\w*(?:Provider|Plugin|Extension))\b", RegexOptions.NonBacktracking)]
     private static partial Regex ExtensionInterfaceRegex();
-
-    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*(?:class|interface|record|struct)\s+(\w+)", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicTypeRegex();
 
     [GeneratedRegex(@"<(ProjectReference|PackageReference)\b[^>]*?\bInclude\s*=\s*""([^""]+)""", RegexOptions.NonBacktracking)]
     private static partial Regex ReferenceRegex();
 
     [GeneratedRegex(@"<[^>]+>", RegexOptions.NonBacktracking)]
     private static partial Regex XmlTagRegex();
-
-    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
-    private static partial Regex WhitespaceRegex();
 
     // ---------- cluster_events ----------
 
@@ -75,7 +66,7 @@ public sealed partial class ClusterTools
             var lines = _fileService.ReadAllLines(full);
             for (var i = 0; i < lines.Length; i++)
             {
-                var m = PublicTypeRegex().Match(lines[i]);
+                var m = TypeScanner.PublicTypePattern().Match(lines[i]);
                 if (!m.Success)
                 {
                     continue;
@@ -122,7 +113,7 @@ public sealed partial class ClusterTools
         }
 
         var text = XmlTagRegex().Replace(string.Join(' ', doc), string.Empty);
-        return WhitespaceRegex().Replace(text, " ").Trim();
+        return TypeScanner.WhitespacePattern().Replace(text, " ").Trim();
     }
 
     // ---------- extension_points ----------
@@ -166,7 +157,7 @@ public sealed partial class ClusterTools
         {
             foreach (var line in lines)
             {
-                var m = ClassWithBasesRegex().Match(line);
+                var m = TypeScanner.ClassWithBasesPattern().Match(line);
                 if (!m.Success)
                 {
                     continue;
@@ -269,44 +260,4 @@ public sealed partial class ClusterTools
 
     // ---------- helpers ----------
 
-    private static List<string> CollectBlockLines(string[] lines, int start, int maxLines = int.MaxValue)
-    {
-        var collected = new List<string>();
-        var depth = 0;
-        var opened = false;
-
-        for (var i = start; i < lines.Length && collected.Count < maxLines; i++)
-        {
-            collected.Add(lines[i]);
-            foreach (var c in lines[i])
-            {
-                if (c == '#')
-                {
-                    break;
-                }
-
-                if (c == '{')
-                {
-                    depth++;
-                    opened = true;
-                }
-                else if (c == '}')
-                {
-                    depth--;
-                }
-            }
-
-            if (opened && depth <= 0)
-            {
-                break;
-            }
-
-            if (!opened && i > start + 3)
-            {
-                break;
-            }
-        }
-
-        return collected;
-    }
 }

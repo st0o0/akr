@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
+using Akr.Scanning;
 using Akr.Source;
 using ModelContextProtocol.Server;
 
@@ -161,20 +162,11 @@ public sealed partial class StreamTools
     private const string NoSource = "No Akka.NET source available.";
     private static readonly string[] _attributeBases = ["IAttribute"];
 
-    [GeneratedRegex(@"^\s*public\s+(?<sig>[^;{=]*\([^)]*\))", RegexOptions.NonBacktracking)]
-    private static partial Regex PublicMethodPattern();
-
     [GeneratedRegex(@"^\s*(?:public|internal)\s+static\s+(?:readonly\s+)?[^=;\r\n]*\b(?:Default|Instance|None)\w*\s*(?:=\s*[^;\r\n]+;|\{[^}]*\}\s*=\s*[^;\r\n]+;)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     private static partial Regex DefaultPattern();
 
     [GeneratedRegex(@"\bclass\s+GraphDsl\b|\bclass\s+Builder\b", RegexOptions.NonBacktracking)]
     private static partial Regex GraphDslClassPattern();
-
-    [GeneratedRegex(@"<[^>]*>", RegexOptions.NonBacktracking)]
-    private static partial Regex XmlTag();
-
-    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
-    private static partial Regex Whitespace();
 
     [McpServerTool(Name = "stage_detail"), Description("Get the full source of a specific Akka.Streams stage by class name.")]
     public async Task<string> StageDetailAsync(
@@ -251,7 +243,7 @@ public sealed partial class StreamTools
                 var line = raw.Trim();
                 if (line.StartsWith("///", StringComparison.Ordinal))
                 {
-                    var text = XmlTag().Replace(line[3..], "").Trim();
+                    var text = TypeScanner.XmlTagPattern().Replace(line[3..], "").Trim();
                     if (text.Length > 0)
                     {
                         doc.Add(text);
@@ -260,7 +252,7 @@ public sealed partial class StreamTools
                     continue;
                 }
 
-                var m = PublicMethodPattern().Match(line);
+                var m = TypeScanner.MethodSignaturePattern().Match(line);
                 if (m.Success && !line.Contains(" class ", StringComparison.Ordinal))
                 {
                     if (!header)
@@ -269,7 +261,7 @@ public sealed partial class StreamTools
                         header = true;
                     }
 
-                    var sig = Whitespace().Replace(m.Groups["sig"].Value.Trim(), " ");
+                    var sig = TypeScanner.WhitespacePattern().Replace(m.Groups["sig"].Value.Trim(), " ");
                     sb.AppendLine(doc.Count > 0 ? $"  {sig}  // {doc[0]}" : $"  {sig}");
                     count++;
                 }
@@ -297,7 +289,7 @@ public sealed partial class StreamTools
         {
             var content = _fileService.ReadAllText(file.Full);
             var attrs = ClassPattern().Matches(content)
-                .Where(m => HasBase(m.Groups["bases"].Value, _attributeBases))
+                .Where(m => TypeScanner.HasBase(m.Groups["bases"].Value, _attributeBases))
                 .Select(m => m.Groups["name"].Value)
                 .ToList();
             if (attrs.Count == 0)
@@ -314,7 +306,7 @@ public sealed partial class StreamTools
 
             foreach (Match d in DefaultPattern().Matches(content))
             {
-                sb.AppendLine($"    default: {Whitespace().Replace(d.Value.Trim(), " ")}");
+                sb.AppendLine($"    default: {TypeScanner.WhitespacePattern().Replace(d.Value.Trim(), " ")}");
             }
 
             sb.AppendLine();
@@ -323,23 +315,4 @@ public sealed partial class StreamTools
         return count == 0 ? "No stream attributes found." : $"Found {count} attribute(s):\n\n{sb}";
     }
 
-    private static bool HasBase(string bases, string[] names)
-    {
-        foreach (var part in bases.Split(','))
-        {
-            var name = part.Trim();
-            var lt = name.IndexOf('<');
-            if (lt >= 0)
-            {
-                name = name[..lt];
-            }
-
-            if (names.Contains(name[(name.LastIndexOf('.') + 1)..]))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

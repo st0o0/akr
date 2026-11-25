@@ -16,6 +16,7 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton<FileService>();
         services.AddSingleton<SourceSearcher>();
         services.AddSingleton<TypeScanner>();
+        services.AddSingleton<HoconScanner>();
         services.AddSingleton<DocsIndex>();
         services.AddSingleton<ProjectScanner>();
         services.AddSingleton(TimeProvider.System);
