@@ -127,8 +127,6 @@ public sealed class ConfigTools
         return FindChangelog(roots, filter);
     }
 
-    // ---- tree ----
-
     public string BuildConfigTree(IEnumerable<string> roots, string? path)
     {
         var rootList = roots.ToList();
@@ -193,8 +191,6 @@ public sealed class ConfigTools
         return sb.ToString();
     }
 
-    // ---- diff ----
-
     public static ConfigDiffResult DiffConfig(IReadOnlyDictionary<string, string?> a,
         IReadOnlyDictionary<string, string?> b)
     {
@@ -226,8 +222,6 @@ public sealed class ConfigTools
 
         return sb.ToString();
     }
-
-    // ---- changelog ----
 
     public string FindChangelog(IEnumerable<string> roots, string? filter)
     {

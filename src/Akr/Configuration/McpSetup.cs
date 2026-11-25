@@ -4,6 +4,7 @@ using Akr.Scanning;
 using Akr.Source;
 using Akr.Tools;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Terp.Hosting;
 
 namespace Akr.Configuration;
@@ -18,18 +19,23 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton<TypeScanner>();
         services.AddSingleton<HoconScanner>();
         services.AddSingleton<DocsIndex>();
-        services.AddSingleton<ProjectScanner>();
         services.AddSingleton(TimeProvider.System);
 
         services.Configure<AkrOptions>(AkrOptions.BindFromEnvironment());
+
+        services.AddSingleton<ProjectScanner>(sp =>
+        {
+            var scanner = ActivatorUtilities.CreateInstance<ProjectScanner>(sp);
+            var options = sp.GetRequiredService<IOptions<AkrOptions>>().Value;
+            scanner.Initialize(options.ProjectPath);
+            return scanner;
+        });
 
         services.AddAkka("akr", (builder, _) => { });
 
         services.AddSingleton<SourceCache>();
         services.AddSingleton<VersionResolver>();
         services.AddSingleton<SourcePipeline>();
-
-        services.AddHostedService<ProjectContextInitializer>();
 
         services.AddHttpClient<SourceFetcher>(client =>
         {

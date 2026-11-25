@@ -28,8 +28,6 @@ public sealed partial class SerializationTools
     [GeneratedRegex(@"ISerializationManifest|\bManifest\s*\(|\bManifest\s*=|SerializerWithStringManifest|IWithManifest|const\s+string\s+\w*Manifest\w*\s*=", RegexOptions.NonBacktracking)]
     private static partial Regex ManifestRegex();
 
-    // ---------- serializer_bindings ----------
-
     [McpServerTool(Name = "serializer_bindings"), Description("Show Akka.NET serialization-bindings (type to serializer mapping) from reference.conf files.")]
     public async Task<string> SerializerBindingsAsync(
         [Description("Optional filter on type or serializer name")] string? filter = null,
@@ -85,8 +83,6 @@ public sealed partial class SerializationTools
 
         return sb.ToString();
     }
-
-    // ---------- serializer_detail ----------
 
     [McpServerTool(Name = "serializer_detail"), Description("Show source and reference.conf config for Akka.NET serializer classes (Serializer / SerializerWithStringManifest).")]
     public async Task<string> SerializerDetailAsync(
@@ -158,8 +154,6 @@ public sealed partial class SerializationTools
                 || b.EndsWith(".Serializer", StringComparison.Ordinal)
                 || b.EndsWith(".SerializerWithStringManifest", StringComparison.Ordinal));
 
-    // ---------- serialization_manifest ----------
-
     [McpServerTool(Name = "serialization_manifest"), Description("Find serialization manifest mappings (ISerializationManifest, Manifest methods, manifest constants) in persistence code.")]
     public async Task<string> SerializationManifestAsync(
         [Description("Optional file path filter (default: Persistence)")] string? filter = null,
@@ -201,7 +195,5 @@ public sealed partial class SerializationTools
 
         return count == 0 ? "No serialization manifest patterns found." : sb.ToString();
     }
-
-    // ---------- helpers ----------
 
 }

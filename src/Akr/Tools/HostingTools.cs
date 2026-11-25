@@ -254,8 +254,6 @@ public sealed partial class HostingTools
         return merged;
     }
 
-    // ---- startup order ----
-
     public string FindStartupOrder(IEnumerable<string> roots, string? filter)
     {
         var constraints = new List<string>();
@@ -322,8 +320,6 @@ public sealed partial class HostingTools
         ("Props with DI", new Regex(@"DependencyResolver|\bPropsFor\b|GetRequiredService|\bProps<|\.Props\(", RegexOptions.NonBacktracking))
     ];
 
-    // ---------- hosting_di_patterns ----------
-
     [McpServerTool(Name = "hosting_di_patterns"), Description("Catalog of dependency injection patterns in Akka.Hosting source (IRequiredActor, ActorRegistry, Props with DI).")]
     public async Task<string> HostingDiPatternsAsync(
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
@@ -384,8 +380,6 @@ public sealed partial class HostingTools
 
         return sb.ToString();
     }
-
-    // ---------- hosting_testkit ----------
 
     [McpServerTool(Name = "hosting_testkit"), Description("Compare Akka.TestKit and Akka.Hosting.TestKit: base classes and assertion methods.")]
     public async Task<string> HostingTestKitAsync(

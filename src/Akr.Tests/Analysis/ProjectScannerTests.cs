@@ -1,4 +1,5 @@
 using System.IO.Abstractions;
+using Akr.Registry;
 using Akr.Scanning;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -191,7 +192,7 @@ public sealed class ProjectScannerTests : IDisposable
             ["Akka.Persistence.Sql"] = "1.5.30"
         };
 
-        var repoVersions = _scanner.MapToRepoVersions(packages);
+        var repoVersions = RepoRegistry.MapToRepoVersions(packages);
 
         Assert.Equal("1.5.75", repoVersions["akkadotnet/akka.net"]);
         Assert.Equal("1.5.10", repoVersions["akkadotnet/Akka.Management"]);

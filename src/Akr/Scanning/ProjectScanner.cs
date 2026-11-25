@@ -5,8 +5,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Akr.Scanning;
 
-public sealed class ProjectScanner
+public sealed partial class ProjectScanner
 {
+    private const string DirectoryPackagesProps = "Directory.Packages.props";
+    private const string DirectoryBuildProps = "Directory.Build.props";
+
     private readonly FileService _fileService;
     private readonly ILogger<ProjectScanner> _logger;
     private readonly ConcurrentDictionary<string, ProjectScanResult> _cache = new(StringComparer.OrdinalIgnoreCase);
@@ -18,6 +21,25 @@ public sealed class ProjectScanner
     }
 
     public ProjectScanResult Current { get; set; } = ProjectScanResult.Empty;
+
+    public void Initialize(string? projectPath)
+    {
+        if (!string.IsNullOrEmpty(projectPath))
+        {
+            var result = Scan(projectPath);
+            if (result.HasPackages)
+            {
+                Current = result;
+                return;
+            }
+        }
+
+        var cwdResult = Scan(Environment.CurrentDirectory);
+        if (cwdResult.HasPackages)
+        {
+            Current = cwdResult;
+        }
+    }
 
     public ProjectScanResult Scan(string startDirectory, string? stopDirectory = null)
     {
@@ -36,14 +58,17 @@ public sealed class ProjectScanner
             var (packages, foundProjectFiles) = ScanDirectory(current);
             if (packages.Count > 0)
             {
-                _logger.LogInformation("Detected Akka.NET packages in {Path}: {Packages}",
-                    current, string.Join(", ", packages.Select(p => $"{p.Key}={p.Value}")));
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    Log.DetectedPackages(_logger, current, string.Join(", ", packages.Select(p => $"{p.Key}={p.Value}")));
+                }
+
                 return new ProjectScanResult(current, packages);
             }
 
             if (foundProjectFiles)
             {
-                _logger.LogDebug("Found project files in {Path} but no Akka.NET packages", current);
+                Log.FoundProjectFilesNoPackages(_logger, current);
                 break;
             }
 
@@ -64,22 +89,22 @@ public sealed class ProjectScanner
         var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var foundFiles = false;
 
-        var dpp = _fileService.Combine(directory, "Directory.Packages.props");
+        var dpp = _fileService.Combine(directory, DirectoryPackagesProps);
         if (_fileService.FileExists(dpp))
         {
             foundFiles = true;
-            ScanPackagesProps(dpp, packages);
+            ScanPackageElements(dpp, "PackageVersion", packages);
             if (packages.Count > 0)
             {
                 return (packages, true);
             }
         }
 
-        var dbp = _fileService.Combine(directory, "Directory.Build.props");
+        var dbp = _fileService.Combine(directory, DirectoryBuildProps);
         if (_fileService.FileExists(dbp))
         {
             foundFiles = true;
-            ScanPackageReferences(dbp, packages);
+            ScanPackageElements(dbp, "PackageReference", packages);
             if (packages.Count > 0)
             {
                 return (packages, true);
@@ -94,13 +119,13 @@ public sealed class ProjectScanner
         return (packages, foundFiles);
     }
 
-    private void ScanPackagesProps(string path, Dictionary<string, string> packages)
+    private void ScanPackageElements(string path, string elementName, Dictionary<string, string> packages)
     {
         try
         {
             var xml = XDocument.Parse(_fileService.ReadAllText(path));
             foreach (var el in xml.Descendants().Where(e =>
-                         e.Name.LocalName.Equals("PackageVersion", StringComparison.OrdinalIgnoreCase)))
+                         e.Name.LocalName.Equals(elementName, StringComparison.OrdinalIgnoreCase)))
             {
                 var include = el.Attribute("Include")?.Value;
                 var version = el.Attribute("Version")?.Value;
@@ -112,29 +137,7 @@ public sealed class ProjectScanner
         }
         catch (Exception ex) when (ex is IOException or System.Xml.XmlException)
         {
-            _logger.LogWarning(ex, "Failed to parse {Path}: {Error}", path, ex.Message);
-        }
-    }
-
-    private void ScanPackageReferences(string path, Dictionary<string, string> packages)
-    {
-        try
-        {
-            var xml = XDocument.Parse(_fileService.ReadAllText(path));
-            foreach (var el in xml.Descendants().Where(e =>
-                         e.Name.LocalName.Equals("PackageReference", StringComparison.OrdinalIgnoreCase)))
-            {
-                var include = el.Attribute("Include")?.Value;
-                var version = el.Attribute("Version")?.Value;
-                if (include is not null && version is not null && IsAkkaPackage(include))
-                {
-                    packages.TryAdd(include, version);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or System.Xml.XmlException)
-        {
-            _logger.LogWarning(ex, "Failed to parse {Path}: {Error}", path, ex.Message);
+            Log.FailedToParse(_logger, ex, path, ex.Message);
         }
     }
 
@@ -146,12 +149,12 @@ public sealed class ProjectScanner
             foreach (var file in _fileService.EnumerateDirectoryFiles(directory, "*.csproj"))
             {
                 found = true;
-                ScanPackageReferences(file, packages);
+                ScanPackageElements(file, "PackageReference", packages);
             }
         }
         catch (Exception ex) when (ex is IOException)
         {
-            _logger.LogWarning(ex, "Failed to enumerate csproj files in {Path}: {Error}", directory, ex.Message);
+            Log.FailedToEnumerateCsproj(_logger, ex, directory, ex.Message);
         }
 
         return found;
@@ -160,22 +163,19 @@ public sealed class ProjectScanner
     private static bool IsAkkaPackage(string packageName) =>
         RepoRegistry.GetEntry(packageName) is not null;
 
-    public Dictionary<string, string> MapToRepoVersions(IReadOnlyDictionary<string, string> packages)
+    private static partial class Log
     {
-        var repoVersions = new Dictionary<string, string>(StringComparer.Ordinal);
+        [LoggerMessage(Level = LogLevel.Information, Message = "Detected Akka.NET packages in {Path}: {Packages}")]
+        public static partial void DetectedPackages(ILogger logger, string path, string packages);
 
-        foreach (var (packageName, version) in packages)
-        {
-            var entry = RepoRegistry.GetEntry(packageName);
-            if (entry is null)
-            {
-                continue;
-            }
+        [LoggerMessage(Level = LogLevel.Debug, Message = "Found project files in {Path} but no Akka.NET packages")]
+        public static partial void FoundProjectFilesNoPackages(ILogger logger, string path);
 
-            repoVersions.TryAdd(entry.Repo, version);
-        }
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse {Path}: {Error}")]
+        public static partial void FailedToParse(ILogger logger, Exception ex, string path, string error);
 
-        return repoVersions;
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to enumerate csproj files in {Path}: {Error}")]
+        public static partial void FailedToEnumerateCsproj(ILogger logger, Exception ex, string path, string error);
     }
 }
 

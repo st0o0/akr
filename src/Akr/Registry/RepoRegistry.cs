@@ -67,4 +67,22 @@ public static class RepoRegistry
     public static IReadOnlyCollection<string> GetAllPackageNames() => _packages.Keys;
 
     public static IEnumerable<string> ResolveTags(string version) => [version, $"v{version}"];
+
+    public static Dictionary<string, string> MapToRepoVersions(IReadOnlyDictionary<string, string> packages)
+    {
+        var repoVersions = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (packageName, version) in packages)
+        {
+            var entry = GetEntry(packageName);
+            if (entry is null)
+            {
+                continue;
+            }
+
+            repoVersions.TryAdd(entry.Repo, version);
+        }
+
+        return repoVersions;
+    }
 }

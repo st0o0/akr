@@ -1,13 +1,14 @@
 using System.Net;
 using System.Text.Json;
 using Akr.Configuration;
+using Akr.Registry;
 using Akr.Scanning;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Akr.Source;
 
-public sealed class VersionResolver
+public sealed partial class VersionResolver
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<VersionResolver> _logger;
@@ -42,10 +43,10 @@ public sealed class VersionResolver
 
         if (_projectScanner.Current is { HasPackages: true } scanResult)
         {
-            var repoVersions = _projectScanner.MapToRepoVersions(scanResult.Packages);
+            var repoVersions = RepoRegistry.MapToRepoVersions(scanResult.Packages);
             if (repoVersions.TryGetValue(repo, out var projectVersion))
             {
-                _logger.LogInformation("Using project-detected version for {Repo}: {Version}", repo, projectVersion);
+                Log.UsingProjectVersion(_logger, repo, projectVersion);
                 _latestVersions[repo] = projectVersion;
                 return projectVersion;
             }
@@ -59,7 +60,7 @@ public sealed class VersionResolver
             var age = _timeProvider.GetUtcNow() - meta.LastChecked;
             if (age < _cacheTtl)
             {
-                _logger.LogDebug("Cache fresh for {Repo} ({Version}, checked {Age} ago)", repo, meta.Version, age);
+                Log.CacheFresh(_logger, repo, meta.Version, age);
                 _latestVersions[repo] = meta.Version;
                 return meta.Version;
             }
@@ -73,14 +74,13 @@ public sealed class VersionResolver
             request.Headers.TryAddWithoutValidation("If-None-Match", meta.Etag);
         }
 
-        _logger.LogInformation("Resolving latest version for {Repo}{Conditional}",
-            repo, meta?.Etag is not null ? " (conditional)" : "");
+        Log.ResolvingLatestVersion(_logger, repo, meta?.Etag is not null ? " (conditional)" : "");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.NotModified && meta is not null)
         {
-            _logger.LogDebug("Version unchanged for {Repo} ({Version})", repo, meta.Version);
+            Log.VersionUnchanged(_logger, repo, meta.Version);
             var refreshed = meta with { LastChecked = _timeProvider.GetUtcNow() };
             _cache.WriteMetadata(repoName, refreshed);
             _latestVersions[repo] = meta.Version;
@@ -122,7 +122,7 @@ public sealed class VersionResolver
         _cache.WriteMetadata(repoName, newMeta);
 
         _latestVersions[repo] = version;
-        _logger.LogInformation("Resolved {Repo} -> {Version}", repo, version);
+        Log.ResolvedVersion(_logger, repo, version);
         return version;
     }
 
@@ -153,5 +153,23 @@ public sealed class VersionResolver
         {
             _cache.WriteMetadata(repoName, meta with { TagFormat = tagFormat });
         }
+    }
+
+    private static partial class Log
+    {
+        [LoggerMessage(Level = LogLevel.Information, Message = "Using project-detected version for {Repo}: {Version}")]
+        public static partial void UsingProjectVersion(ILogger logger, string repo, string version);
+
+        [LoggerMessage(Level = LogLevel.Debug, Message = "Cache fresh for {Repo} ({Version}, checked {Age} ago)")]
+        public static partial void CacheFresh(ILogger logger, string repo, string version, TimeSpan age);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Resolving latest version for {Repo}{Conditional}")]
+        public static partial void ResolvingLatestVersion(ILogger logger, string repo, string conditional);
+
+        [LoggerMessage(Level = LogLevel.Debug, Message = "Version unchanged for {Repo} ({Version})")]
+        public static partial void VersionUnchanged(ILogger logger, string repo, string version);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Resolved {Repo} -> {Version}")]
+        public static partial void ResolvedVersion(ILogger logger, string repo, string version);
     }
 }

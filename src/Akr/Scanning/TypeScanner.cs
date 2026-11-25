@@ -267,16 +267,16 @@ public sealed partial class TypeScanner
         return s.Length;
     }
 
-    [GeneratedRegex(@"^[ \t]*(?:\[[^\]\r\n]*\][ \t]*)*(?:(?:public|internal|private|protected|static|sealed|abstract|partial|readonly|unsafe|new|file)[ \t]+)*(?:record[ \t]+)?(class|struct|interface|record)[ \t]+(\w+)([^{;]*)", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^[ \t]*(?:\[[^\]\r\n]*\][ \t]*)*(?:(?:public|internal|private|protected|static|sealed|abstract|partial|readonly|unsafe|new|file)[ \t]+)*(?:record[ \t]+)?(class|struct|interface|record)[ \t]+(\w+)([^{;]*)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     public static partial Regex DeclPattern();
 
-    [GeneratedRegex(@"^\s*namespace\s+([\w.]+)", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*namespace\s+([\w.]+)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     public static partial Regex NamespacePattern();
 
-    [GeneratedRegex(@"//[^\r\n]*")]
+    [GeneratedRegex(@"//[^\r\n]*", RegexOptions.NonBacktracking)]
     private static partial Regex LineComment();
 
-    [GeneratedRegex(@"\bwhere\b")]
+    [GeneratedRegex(@"\bwhere\b", RegexOptions.NonBacktracking)]
     private static partial Regex WhereKeyword();
 
 
@@ -298,6 +298,6 @@ public sealed partial class TypeScanner
     [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*(?:class|interface|record|struct)\s+(\w+)", RegexOptions.NonBacktracking)]
     public static partial Regex PublicTypePattern();
 
-    [GeneratedRegex(@"\b(?:class|record)\s+(\w+)[^{;]*?:\s*([^{;]*)", RegexOptions.NonBacktracking)]
+    [GeneratedRegex(@"\b(?:class|record)\s+(\w+)[^{;:]*:\s*([^{;]*)", RegexOptions.NonBacktracking)]
     public static partial Regex ClassWithBasesPattern();
 }

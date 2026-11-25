@@ -173,7 +173,7 @@ public sealed partial class TypeTools
         }
     }
 
-    [GeneratedRegex(@"^\s*namespace\s+([\w.]+)", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\s*namespace\s+([\w.]+)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     private static partial Regex NamespacePattern();
 
     public IReadOnlyList<TypeLookupResult> FindType(
@@ -318,43 +318,43 @@ public sealed partial class TypeTools
     public const string EventKind = "Event";
     private const int MaxSignatureLines = 25;
 
-    [GeneratedRegex(@"^\s*(?:\[[^\]]*\]\s*)*(?:(?:public|internal|private|protected|static|sealed|abstract|partial|readonly|unsafe|new|file)\s+)*(?:record\s+)?(class|struct|interface|record)\s+(\w+)")]
+    [GeneratedRegex(@"^\s*(?:\[[^\]]*\]\s*)*(?:(?:public|internal|private|protected|static|sealed|abstract|partial|readonly|unsafe|new|file)\s+)*(?:record\s+)?(class|struct|interface|record)\s+(\w+)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     private static partial Regex TypeDeclPattern();
 
-    [GeneratedRegex(@"^(?:\[[^\]]*\]\s*)+")]
+    [GeneratedRegex(@"^(?:\[[^\]]*\]\s*)+", RegexOptions.NonBacktracking)]
     private static partial Regex AttributePrefix();
 
-    [GeneratedRegex(@"^(?:public|protected|internal)\b")]
+    [GeneratedRegex(@"^(?:public|protected|internal)\b", RegexOptions.NonBacktracking)]
     private static partial Regex ModifierStart();
 
-    [GeneratedRegex(@"^[A-Za-z_]")]
+    [GeneratedRegex(@"^[A-Za-z_]", RegexOptions.NonBacktracking)]
     private static partial Regex InterfaceStart();
 
-    [GeneratedRegex(@"^(?:\w+\s+)*?(?:class|struct|interface|enum|delegate|record)\s+\w+")]
+    [GeneratedRegex(@"^(?:(?:public|internal|private|protected|static|sealed|abstract|partial|readonly|unsafe|new|file)\s+)*(?:class|struct|interface|enum|delegate|record)\s+\w+", RegexOptions.NonBacktracking)]
     private static partial Regex NestedTypePattern();
 
-    [GeneratedRegex(@"^(?:\w+\s+)*event\s")]
+    [GeneratedRegex(@"^(?:\w+\s+)*event\s", RegexOptions.NonBacktracking)]
     private static partial Regex EventPattern();
 
-    [GeneratedRegex(@"^\{\s*(?:get|set|init)\b[^}]*\}")]
+    [GeneratedRegex(@"^\{\s*(?:get|set|init)\b[^}]*\}", RegexOptions.NonBacktracking)]
     private static partial Regex InlineAccessors();
 
-    [GeneratedRegex(@"^(?:(?:public|protected|internal|private|static|abstract|virtual|override|sealed|async|extern|unsafe|new|partial|readonly)\s+)+")]
+    [GeneratedRegex(@"^(?:(?:public|protected|internal|private|static|abstract|virtual|override|sealed|async|extern|unsafe|new|partial|readonly)\s+)+", RegexOptions.NonBacktracking)]
     private static partial Regex ModifierWords();
 
-    [GeneratedRegex(@"^public\s+")]
+    [GeneratedRegex(@"^public\s+", RegexOptions.NonBacktracking)]
     private static partial Regex PublicPrefix();
 
-    [GeneratedRegex(@"\)\s*:\s*(?:base|this)\s*\(.*$")]
+    [GeneratedRegex(@"\)\s*:\s*(?:base|this)\s*\(.*$", RegexOptions.NonBacktracking)]
     private static partial Regex ConstructorInitializer();
 
-    [GeneratedRegex(@"\s+")]
+    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
     private static partial Regex Whitespace();
 
-    [GeneratedRegex(@"\b(get|set|init)\b")]
+    [GeneratedRegex(@"\b(get|set|init)\b", RegexOptions.NonBacktracking)]
     private static partial Regex AccessorWord();
 
-    [GeneratedRegex(@"\b(?:class|struct|interface|record)\s+(\w+(?:<[^>]*>)?)(.*)$")]
+    [GeneratedRegex(@"\b(?:class|struct|interface|record)\s+(\w+(?:<[^>]*>)?)(.*)$", RegexOptions.NonBacktracking)]
     private static partial Regex HeaderPattern();
 
     public static IReadOnlyList<MemberInfo> Extract(string source, string? typeName = null)
@@ -689,33 +689,29 @@ public sealed partial class TypeTools
         return roots.Count == 0 ? NoSource : Supervision(roots, filter);
     }
 
-    // ---- Regexes ----
-
     [GeneratedRegex(@"\b(?:Receive|ReceiveAsync|Command|CommandAsync)\s*<\s*(.+?)\s*>\s*\(")]
     private static partial Regex HandlerPattern();
 
-    [GeneratedRegex(@"\b(Receive|ReceiveAsync|Command|CommandAsync)\s*<")]
+    [GeneratedRegex(@"\b(Receive|ReceiveAsync|Command|CommandAsync)\s*<", RegexOptions.NonBacktracking)]
     private static partial Regex HandlerKindPattern();
 
-    [GeneratedRegex(@"^\s*((?:(?:public|protected|internal|private|virtual|abstract|override|sealed|async|unsafe|new|static)\s+)+)(.*)$")]
+    [GeneratedRegex(@"^\s*((?:(?:public|protected|internal|private|virtual|abstract|override|sealed|async|unsafe|new|static)\s+)+)(.*)$", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
     private static partial Regex MethodLine();
 
-    [GeneratedRegex(@"(\w+)\s*(?:<[^>(]*>)?\s*\(")]
+    [GeneratedRegex(@"(\w+)\s*(?:<[^>(]*>)?\s*\(", RegexOptions.NonBacktracking)]
     private static partial Regex MethodName();
 
-    [GeneratedRegex(@"\boverride\s+SupervisorStrategy\s+SupervisorStrategy\b")]
+    [GeneratedRegex(@"\boverride\s+SupervisorStrategy\s+SupervisorStrategy\b", RegexOptions.NonBacktracking)]
     private static partial Regex StrategyOverride();
 
-    [GeneratedRegex(@"\b(?:DefaultStrategy|DefaultDecider)\s*(?:=|\{|\()")]
+    [GeneratedRegex(@"\b(?:DefaultStrategy|DefaultDecider)\s*(?:=|\{|\()", RegexOptions.NonBacktracking)]
     private static partial Regex StrategyDefault();
 
-    [GeneratedRegex(@"\b(OneForOneStrategy|AllForOneStrategy)\s*\(")]
+    [GeneratedRegex(@"\b(OneForOneStrategy|AllForOneStrategy)\s*\(", RegexOptions.NonBacktracking)]
     private static partial Regex StrategyCtor();
 
-    [GeneratedRegex(@"\bDirective\.(\w+)")]
+    [GeneratedRegex(@"\bDirective\.(\w+)", RegexOptions.NonBacktracking)]
     private static partial Regex DirectivePattern();
-
-    // ---- type_hierarchy ----
 
     public string Hierarchy(IReadOnlyList<string> roots, string type)
     {
@@ -782,8 +778,6 @@ public sealed partial class TypeTools
         }
     }
 
-    // ---- find_implementations ----
-
     public string Implementations(IReadOnlyList<string> roots, string @interface)
     {
         var name = TypeScanner.BaseName(@interface);
@@ -837,8 +831,6 @@ public sealed partial class TypeTools
         return sb.ToString().TrimEnd();
     }
 
-    // ---- find_messages ----
-
     public string Messages(IReadOnlyList<string> roots, string actor)
     {
         var name = TypeScanner.BaseName(actor);
@@ -877,8 +869,6 @@ public sealed partial class TypeTools
 
         return sb.ToString().TrimEnd();
     }
-
-    // ---- message_protocol ----
 
     public string Protocol(IReadOnlyList<string> roots, string scope)
     {
@@ -958,8 +948,6 @@ public sealed partial class TypeTools
         return name[..^suffix.Length];
     }
 
-    // ---- virtual_methods ----
-
     public string VirtualMethods(IReadOnlyList<string> roots, string type)
     {
         var name = TypeScanner.BaseName(type);
@@ -1027,8 +1015,6 @@ public sealed partial class TypeTools
         var idx = Array.IndexOf(_lifecycle, method);
         return idx < 0 ? _lifecycle.Length : idx;
     }
-
-    // ---- supervision_defaults ----
 
     public IReadOnlyList<SupervisionInfo> FindSupervision(IReadOnlyList<string> roots)
     {

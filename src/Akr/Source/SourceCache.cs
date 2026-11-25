@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Akr.Source;
 
-public sealed class SourceCache
+public sealed partial class SourceCache
 {
     private readonly string _cacheRoot;
     private readonly FileService _fileService;
@@ -47,7 +47,7 @@ public sealed class SourceCache
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
-            _logger.LogWarning("Corrupt metadata for {Repo}, ignoring: {Error}", repoName, ex.Message);
+            Log.CorruptMetadata(_logger, repoName, ex.Message);
             return null;
         }
     }
@@ -124,7 +124,7 @@ public sealed class SourceCache
                 var dir = _fileService.Combine(_cacheRoot, repoName, entry.Version);
                 if (_fileService.DirectoryExists(dir))
                 {
-                    _logger.LogInformation("Evicting LRU version {Repo}/{Version}", repoName, entry.Version);
+                    Log.EvictingLruVersion(_logger, repoName, entry.Version);
                     _fileService.DeleteDirectory(dir, true);
                 }
             }
@@ -137,7 +137,7 @@ public sealed class SourceCache
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning("Failed to clean up old versions for {Repo}: {Error}", repoName, ex.Message);
+            Log.FailedToCleanUp(_logger, repoName, ex.Message);
         }
     }
 
@@ -146,4 +146,16 @@ public sealed class SourceCache
 
     private string MetaPath(string repoName) =>
         _fileService.Combine(_cacheRoot, "meta", $"{repoName}.json");
+
+    private static partial class Log
+    {
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Corrupt metadata for {Repo}, ignoring: {Error}")]
+        public static partial void CorruptMetadata(ILogger logger, string repo, string error);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Evicting LRU version {Repo}/{Version}")]
+        public static partial void EvictingLruVersion(ILogger logger, string repo, string version);
+
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to clean up old versions for {Repo}: {Error}")]
+        public static partial void FailedToCleanUp(ILogger logger, string repo, string error);
+    }
 }

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Akr.Source;
 
-public sealed class SourceFetcher
+public sealed partial class SourceFetcher
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<SourceFetcher> _logger;
@@ -72,7 +72,7 @@ public sealed class SourceFetcher
                 }
                 catch (SourceFetchException)
                 {
-                    _logger.LogDebug("Tag {Tag} failed for {Repo}, trying v-prefixed", version, repo);
+                    Log.TagFailed(_logger, version, repo);
                     if (_fileService.DirectoryExists(tempPath))
                     {
                         _fileService.DeleteDirectory(tempPath, true);
@@ -101,7 +101,7 @@ public sealed class SourceFetcher
     private async Task FetchArchiveAsync(string repo, string tag, string targetPath, CancellationToken cancellationToken)
     {
         var url = $"https://github.com/{repo}/archive/refs/tags/{tag}.tar.gz";
-        _logger.LogInformation("Fetching {Repo} at tag {Tag}", repo, tag);
+        Log.FetchingRepo(_logger, repo, tag);
 
         using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         ThrowIfFailed(response, repo, tag);
@@ -113,7 +113,7 @@ public sealed class SourceFetcher
         _fileService.CreateDirectory(targetPath);
         await ExtractTarAsync(gzipStream, targetPath, cancellationToken);
 
-        _logger.LogInformation("Extracted {Repo}@{Tag} to {Path}", repo, tag, targetPath);
+        Log.ExtractedRepo(_logger, repo, tag, targetPath);
     }
 
     private static void ThrowIfFailed(HttpResponseMessage response, string repo, string tag)
@@ -166,5 +166,17 @@ public sealed class SourceFetcher
         var normalized = path.Replace('\\', '/');
         var slashIndex = normalized.IndexOf('/');
         return slashIndex >= 0 ? normalized[(slashIndex + 1)..] : string.Empty;
+    }
+
+    private static partial class Log
+    {
+        [LoggerMessage(Level = LogLevel.Debug, Message = "Tag {Tag} failed for {Repo}, trying v-prefixed")]
+        public static partial void TagFailed(ILogger logger, string tag, string repo);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Fetching {Repo} at tag {Tag}")]
+        public static partial void FetchingRepo(ILogger logger, string repo, string tag);
+
+        [LoggerMessage(Level = LogLevel.Information, Message = "Extracted {Repo}@{Tag} to {Path}")]
+        public static partial void ExtractedRepo(ILogger logger, string repo, string tag, string path);
     }
 }

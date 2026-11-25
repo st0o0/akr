@@ -46,8 +46,6 @@ public sealed partial class ClusterTools
     [GeneratedRegex(@"<[^>]+>", RegexOptions.NonBacktracking)]
     private static partial Regex XmlTagRegex();
 
-    // ---------- cluster_events ----------
-
     [McpServerTool(Name = "cluster_events"), Description("List Akka.Cluster ClusterEvent types ordered by member lifecycle (Joining, Up, Leaving, Exiting, Down, Removed) with XML doc descriptions.")]
     public async Task<string> ClusterEventsAsync(
         [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
@@ -115,8 +113,6 @@ public sealed partial class ClusterTools
         var text = XmlTagRegex().Replace(string.Join(' ', doc), string.Empty);
         return TypeScanner.WhitespacePattern().Replace(text, " ").Trim();
     }
-
-    // ---------- extension_points ----------
 
     [McpServerTool(Name = "extension_points"), Description("Catalog Akka.NET provider/plugin/extension interfaces (I*Provider, I*Plugin, I*Extension) with implementors.")]
     public async Task<string> ExtensionPointsAsync(
@@ -191,8 +187,6 @@ public sealed partial class ClusterTools
         return sb.ToString();
     }
 
-    // ---------- dependency_graph ----------
-
     [McpServerTool(Name = "dependency_graph"), Description("Build an Akka package dependency map from .csproj ProjectReference and PackageReference entries.")]
     public async Task<string> DependencyGraphAsync(
         [Description("Optional project name filter (e.g. Akka.Cluster)")] string? filter = null,
@@ -257,7 +251,5 @@ public sealed partial class ClusterTools
 
         return sb.ToString();
     }
-
-    // ---------- helpers ----------
 
 }

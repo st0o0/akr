@@ -23,8 +23,6 @@ public sealed class FileService
         _fs = fileSystem;
     }
 
-    // ---- File operations ----
-
     public string ReadAllText(string path) => _fs.File.ReadAllText(path);
 
     public string[] ReadAllLines(string path) => _fs.File.ReadAllLines(path);
@@ -45,8 +43,6 @@ public sealed class FileService
         _fs.File.Move(tempPath, path, overwrite: true);
     }
 
-    // ---- Directory operations ----
-
     public bool DirectoryExists(string path) => _fs.Directory.Exists(path);
 
     public void CreateDirectory(string path) => _fs.Directory.CreateDirectory(path);
@@ -59,8 +55,6 @@ public sealed class FileService
 
     public IEnumerable<string> EnumerateDirectoryFiles(string path, string pattern) =>
         _fs.Directory.EnumerateFiles(path, pattern, SearchOption.TopDirectoryOnly);
-
-    // ---- Path operations ----
 
     public string Combine(params string[] paths) => _fs.Path.Combine(paths);
 
@@ -75,15 +69,11 @@ public sealed class FileService
     public string GetRelativePosixPath(string root, string fullPath) =>
         _fs.Path.GetRelativePath(root, fullPath).Replace('\\', '/');
 
-    // ---- Tar extraction ----
-
     public async Task ExtractTarEntryAsync(TarEntry entry, string fullPath, CancellationToken cancellationToken)
     {
         _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
         await entry.ExtractToFileAsync(fullPath, overwrite: false, cancellationToken);
     }
-
-    // ---- Enumeration with exclusions ----
 
     public IEnumerable<(string Full, string Relative)> EnumerateFiles(
         IEnumerable<string> roots,
@@ -136,8 +126,6 @@ public sealed class FileService
             }
         }
     }
-
-    // ---- Private helpers ----
 
     private bool IsKnownConfigFile(string relative)
     {

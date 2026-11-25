@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Akr.Registry;
 using Akr.Scanning;
 using ModelContextProtocol.Server;
 
@@ -35,7 +36,7 @@ public sealed class ProjectContextTools
             return $"No Akka.NET packages found in {path} or its parent directories. Version resolution will use AKKA_VERSIONS environment variable or latest GitHub release.";
         }
 
-        var repoVersions = _scanner.MapToRepoVersions(result.Packages);
+        var repoVersions = RepoRegistry.MapToRepoVersions(result.Packages);
         return $"Project context set to {result.ProjectPath}\n\nDetected packages:\n"
             + string.Join("\n", result.Packages.Select(p => $"  {p.Key} = {p.Value}"))
             + "\n\nResolved repo versions:\n"
@@ -72,7 +73,7 @@ public sealed class ProjectContextResources
                 Source: "project",
                 ProjectPath: current.ProjectPath,
                 Packages: current.Packages,
-                ResolvedVersions: _scanner.MapToRepoVersions(current.Packages));
+                ResolvedVersions: RepoRegistry.MapToRepoVersions(current.Packages));
         }
         else
         {

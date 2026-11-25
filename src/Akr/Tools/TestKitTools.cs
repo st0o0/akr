@@ -18,8 +18,6 @@ public sealed class TestKitTools
         _sourcePipeline = sourcePipeline;
     }
 
-    // ---------- testkit_helpers ----------
-
     [McpServerTool(Name = "testkit_helpers"), Description("Catalog public utility and assertion methods in Akka TestKit source, grouped by purpose.")]
     public async Task<string> TestKitHelpersAsync(
         [Description("Optional method name filter")] string? filter = null,
