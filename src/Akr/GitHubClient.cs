@@ -13,10 +13,6 @@ namespace Akr;
 
 public sealed class GitHubClient
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        WriteIndented = true
-    };
 
     private readonly string _cacheRoot;
     private readonly HttpClient _httpClient;
@@ -413,7 +409,7 @@ public sealed class GitHubClient
             }
 
             var json = _fileService.ReadAllBytes(path);
-            return JsonSerializer.Deserialize<RepoMetadata>(json, _jsonOptions);
+            return JsonSerializer.Deserialize(json, AkrJsonContext.Default.RepoMetadata);
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
@@ -425,7 +421,7 @@ public sealed class GitHubClient
     private void WriteMetadata(string repoName, RepoMetadata metadata)
     {
         var path = MetaPath(repoName);
-        _fileService.WriteAtomic(path, JsonSerializer.SerializeToUtf8Bytes(metadata, _jsonOptions));
+        _fileService.WriteAtomic(path, JsonSerializer.SerializeToUtf8Bytes(metadata, AkrJsonContext.Default.RepoMetadata));
     }
 
     private void TouchVersionAccess(string repoName, string version)

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Akr.Analysis;
 using ModelContextProtocol.Server;
 
@@ -42,11 +43,15 @@ public sealed class ProjectContextTools
     }
 }
 
+internal sealed record ProjectContextInfo(
+    [property: JsonPropertyName("source")] string Source,
+    [property: JsonPropertyName("projectPath")] string? ProjectPath,
+    [property: JsonPropertyName("packages")] IReadOnlyDictionary<string, string> Packages,
+    [property: JsonPropertyName("resolvedVersions")] Dictionary<string, string> ResolvedVersions);
+
 [McpServerResourceType]
 public sealed class ProjectContextResources
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
-
     private readonly ProjectScanner _scanner;
 
     public ProjectContextResources(ProjectScanner scanner)
@@ -59,34 +64,25 @@ public sealed class ProjectContextResources
     public string GetContext()
     {
         var current = _scanner.Current;
-        string source;
-        string? projectPath;
-        IReadOnlyDictionary<string, string> packages;
-        Dictionary<string, string> repoVersions;
+        ProjectContextInfo context;
 
         if (current.HasPackages)
         {
-            source = "project";
-            projectPath = current.ProjectPath;
-            packages = current.Packages;
-            repoVersions = _scanner.MapToRepoVersions(current.Packages);
+            context = new ProjectContextInfo(
+                Source: "project",
+                ProjectPath: current.ProjectPath,
+                Packages: current.Packages,
+                ResolvedVersions: _scanner.MapToRepoVersions(current.Packages));
         }
         else
         {
-            source = "latest";
-            projectPath = null;
-            packages = new Dictionary<string, string>();
-            repoVersions = [];
+            context = new ProjectContextInfo(
+                Source: "latest",
+                ProjectPath: null,
+                Packages: new Dictionary<string, string>(),
+                ResolvedVersions: []);
         }
 
-        var context = new
-        {
-            source,
-            projectPath,
-            packages,
-            resolvedVersions = repoVersions
-        };
-
-        return JsonSerializer.Serialize(context, _jsonOptions);
+        return JsonSerializer.Serialize(context, AkrJsonContext.Default.ProjectContextInfo);
     }
 }
