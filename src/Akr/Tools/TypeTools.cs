@@ -38,7 +38,7 @@ public sealed partial class TypeTools
         var results = FindType(roots, type, fullSource ?? false);
         if (results.Count == 0)
         {
-            return $"Type '{type}' not found in cached Akka.NET source.";
+            return $"Type '{type}' not found in cached Akka.NET source. Try search_source to find it by a different name.";
         }
 
         var sb = new StringBuilder();
@@ -77,7 +77,7 @@ public sealed partial class TypeTools
         var results = FindType(roots, type, fullSource: true);
         if (results.Count == 0)
         {
-            return $"Type '{type}' not found in cached Akka.NET source.";
+            return $"Type '{type}' not found in cached Akka.NET source. Try search_source to find it by a different name.";
         }
 
         var members = results
@@ -622,7 +622,7 @@ public sealed partial class TypeTools
         return delta;
     }
 
-    private const string NoSource = "No Akka.NET source available.";
+    private const string NoSource = "No Akka.NET source available. Use set_project_context or specify a version parameter.";
     private const int MaxWindowLines = 25;
     private static readonly string[] _lifecycle = ["PreStart", "PreRestart", "PostRestart", "PostStop", "AroundReceive", "Receive"];
     private static readonly string[] _requestSuffixes = ["Command", "Query"];
@@ -720,7 +720,7 @@ public sealed partial class TypeTools
         var decls = all.Where(t => t.Name == name).ToList();
         if (decls.Count == 0)
         {
-            return $"Type '{type}' not found in cached Akka.NET source.";
+            return $"Type '{type}' not found in cached Akka.NET source. Try search_source to find it by a different name.";
         }
 
         var sb = new StringBuilder();
@@ -798,7 +798,7 @@ public sealed partial class TypeTools
 
         if (direct.Count == 0 && indirect.Count == 0)
         {
-            return $"No implementations of '{@interface}' found.";
+            return $"No implementations of '{@interface}' found. Try search_source to locate it.";
         }
 
         var sb = new StringBuilder();
@@ -837,7 +837,7 @@ public sealed partial class TypeTools
         var decls = _scanner.ScanTypes(roots).Where(t => t.Name == name).ToList();
         if (decls.Count == 0)
         {
-            return $"Actor '{actor}' not found in cached Akka.NET source.";
+            return $"Actor '{actor}' not found in cached Akka.NET source. Try search_source to find it by a different name.";
         }
 
         var handlers = new List<(string Kind, string Message)>();
@@ -857,7 +857,7 @@ public sealed partial class TypeTools
 
         if (handlers.Count == 0)
         {
-            return $"No Receive/Command handlers found in '{actor}'.";
+            return $"No Receive/Command handlers found in '{actor}'. Try search_source to locate handler patterns.";
         }
 
         var sb = new StringBuilder();
@@ -890,7 +890,7 @@ public sealed partial class TypeTools
 
         if (requests.Count == 0 && responses.Count == 0 && events.Count == 0)
         {
-            return $"No Command/Query/Event/Response/Result types found for '{scope}'.";
+            return $"No Command/Query/Event/Response/Result types found for '{scope}'. Try search_source to locate message types.";
         }
 
         var sb = new StringBuilder();
@@ -954,7 +954,7 @@ public sealed partial class TypeTools
         var decls = _scanner.ScanTypes(roots).Where(t => t.Name == name).ToList();
         if (decls.Count == 0)
         {
-            return $"Type '{type}' not found in cached Akka.NET source.";
+            return $"Type '{type}' not found in cached Akka.NET source. Try search_source to find it by a different name.";
         }
 
         var methods = new List<(string Name, string Signature)>();
@@ -988,7 +988,7 @@ public sealed partial class TypeTools
 
         if (methods.Count == 0)
         {
-            return $"No virtual or abstract methods found in '{type}'.";
+            return $"No virtual or abstract methods found in '{type}'. Try type_members for all members.";
         }
 
         var ordered = methods
@@ -1070,8 +1070,8 @@ public sealed partial class TypeTools
         if (selected.Count == 0)
         {
             return isDefault
-                ? "No default supervision strategy found in cached Akka.NET source."
-                : $"No SupervisorStrategy override or strategy usage found for '{filter}'.";
+                ? "No default supervision strategy found in cached Akka.NET source. Try search_source for 'SupervisorStrategy'."
+                : $"No SupervisorStrategy override or strategy usage found for '{filter}'. Try search_source to locate it.";
         }
 
         var sb = new StringBuilder();

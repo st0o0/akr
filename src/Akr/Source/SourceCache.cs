@@ -98,10 +98,15 @@ public sealed partial class SourceCache
             .Append(entry)
             .ToList();
 
-        if (meta is not null)
-        {
-            WriteMetadata(repoName, meta with { CachedVersions = versions });
-        }
+        var updated = meta is not null
+            ? meta with { CachedVersions = versions }
+            : new RepoMetadata
+            {
+                Version = version,
+                LastChecked = now,
+                CachedVersions = versions
+            };
+        WriteMetadata(repoName, updated);
     }
 
     public void EvictOldVersions(string repoName)

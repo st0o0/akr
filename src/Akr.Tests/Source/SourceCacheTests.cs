@@ -223,4 +223,91 @@ public sealed class SourceCacheTests
         Assert.NotNull(meta);
         Assert.Equal(2, meta.CachedVersions.Count);
     }
+
+    [Fact]
+    public void ReadMetadata_returns_null_for_corrupt_json()
+    {
+        var cache = CreateCache();
+        var path = $"{CacheRoot}/meta/akka.net.json";
+        _fs.Directory.CreateDirectory($"{CacheRoot}/meta");
+        _fs.File.WriteAllText(path, "not valid json {{{");
+
+        var result = cache.ReadMetadata("akka.net");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void EvictOldVersions_cleans_metadata_when_directory_missing()
+    {
+        var cache = CreateCache(maxVersions: 1);
+        var t0 = _time.GetUtcNow();
+
+        _fs.Directory.CreateDirectory($"{CacheRoot}/akka.net/1.5.75");
+
+        WriteMetadata("akka.net", new RepoMetadata
+        {
+            Version = "1.5.75",
+            LastChecked = t0,
+            CachedVersions =
+            [
+                new CachedVersionEntry { Version = "1.5.70", LastAccessed = t0 },
+                new CachedVersionEntry { Version = "1.5.75", LastAccessed = t0 + TimeSpan.FromHours(1) }
+            ]
+        });
+
+        cache.EvictOldVersions("akka.net");
+
+        Assert.True(_fs.Directory.Exists($"{CacheRoot}/akka.net/1.5.75"));
+        var meta = ReadMetadata("akka.net");
+        Assert.NotNull(meta);
+        Assert.Single(meta.CachedVersions);
+        Assert.Equal("1.5.75", meta.CachedVersions[0].Version);
+    }
+
+    [Fact]
+    public void EvictOldVersions_with_max_one_keeps_most_recent()
+    {
+        var cache = CreateCache(maxVersions: 1);
+        var t0 = _time.GetUtcNow();
+
+        _fs.Directory.CreateDirectory($"{CacheRoot}/akka.net/1.5.70");
+        _fs.Directory.CreateDirectory($"{CacheRoot}/akka.net/1.5.71");
+        _fs.Directory.CreateDirectory($"{CacheRoot}/akka.net/1.5.75");
+
+        WriteMetadata("akka.net", new RepoMetadata
+        {
+            Version = "1.5.75",
+            LastChecked = t0,
+            CachedVersions =
+            [
+                new CachedVersionEntry { Version = "1.5.70", LastAccessed = t0 },
+                new CachedVersionEntry { Version = "1.5.71", LastAccessed = t0 + TimeSpan.FromHours(1) },
+                new CachedVersionEntry { Version = "1.5.75", LastAccessed = t0 + TimeSpan.FromHours(2) }
+            ]
+        });
+
+        cache.EvictOldVersions("akka.net");
+
+        Assert.False(_fs.Directory.Exists($"{CacheRoot}/akka.net/1.5.70"));
+        Assert.False(_fs.Directory.Exists($"{CacheRoot}/akka.net/1.5.71"));
+        Assert.True(_fs.Directory.Exists($"{CacheRoot}/akka.net/1.5.75"));
+        var meta = ReadMetadata("akka.net");
+        Assert.NotNull(meta);
+        Assert.Single(meta.CachedVersions);
+    }
+
+    [Fact]
+    public void RecordVersionAccess_creates_metadata_when_none_exists()
+    {
+        var cache = CreateCache();
+
+        cache.RecordVersionAccess("akka.net", "1.5.75", "v{0}");
+
+        var meta = ReadMetadata("akka.net");
+        Assert.NotNull(meta);
+        Assert.Equal("1.5.75", meta.Version);
+        var entry = Assert.Single(meta.CachedVersions);
+        Assert.Equal("1.5.75", entry.Version);
+    }
 }

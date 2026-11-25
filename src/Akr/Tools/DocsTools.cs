@@ -117,8 +117,8 @@ public sealed class DocsTools
         var entries = new List<DocsEntry>();
         foreach (var (fullPath, relativePath) in _fileService.EnumerateFiles([docsPath], "*.md"))
         {
-            var fileName = Path.GetFileNameWithoutExtension(fullPath);
-            var directory = Path.GetDirectoryName(relativePath)?.Replace('\\', '/') ?? "";
+            var fileName = _fileService.GetFileNameWithoutExtension(fullPath);
+            var directory = _fileService.GetDirectoryName(relativePath)?.Replace('\\', '/') ?? "";
             var content = System.Text.Encoding.UTF8.GetString(_fileService.ReadAllBytes(fullPath));
 
             entries.Add(new DocsEntry(

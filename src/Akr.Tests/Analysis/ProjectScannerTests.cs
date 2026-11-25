@@ -208,4 +208,51 @@ public sealed class ProjectScannerTests
         Assert.True(result.HasPackages);
         Assert.Equal("1.6.0-preview.3", result.Packages["Akka"]);
     }
+
+    [Fact]
+    public void Handles_malformed_xml_gracefully()
+    {
+        WriteFile("Directory.Packages.props", "<not valid xml");
+
+        var result = _scanner.Scan(TestRoot);
+
+        Assert.False(result.HasPackages);
+    }
+
+    [Fact]
+    public void Empty_props_file_returns_no_packages()
+    {
+        WriteFile("Directory.Packages.props", "<Project></Project>");
+
+        var result = _scanner.Scan(TestRoot);
+
+        Assert.False(result.HasPackages);
+    }
+
+    [Fact]
+    public void Version_range_stored_verbatim()
+    {
+        WriteFile("Directory.Packages.props", """
+            <Project>
+              <ItemGroup>
+                <PackageVersion Include="Akka" Version="[1.5.0, 2.0.0)" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        var result = _scanner.Scan(TestRoot);
+
+        Assert.True(result.HasPackages);
+        Assert.Equal("[1.5.0, 2.0.0)", result.Packages["Akka"]);
+    }
+
+    [Fact]
+    public void GetRelativePosixPath_normalizes_backslashes()
+    {
+        var fileService = new FileService(_fs);
+
+        var result = fileService.GetRelativePosixPath("C:\\root", "C:\\root\\src\\file.cs");
+
+        Assert.Equal("src/file.cs", result);
+    }
 }
