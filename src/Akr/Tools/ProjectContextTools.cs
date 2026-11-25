@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Akr.Analysis;
+using Akr.Scanning;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;

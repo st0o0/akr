@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Akr.Models;
 
-namespace Akr.Tools;
+namespace Akr.Scanning;
 
 public sealed class SourceSearcher
 {

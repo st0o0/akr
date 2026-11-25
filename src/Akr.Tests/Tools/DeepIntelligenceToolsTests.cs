@@ -1,22 +1,22 @@
 using System.IO.Abstractions;
-using Akr.Analysis;
+using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class DeepIntelligenceToolsTests : IDisposable
+public sealed class TypeToolsTests : IDisposable
 {
     private readonly string _testRoot;
     private readonly IReadOnlyList<string> _roots;
-    private readonly DeepIntelligenceTools _tools;
+    private readonly TypeTools _tools;
 
-    public DeepIntelligenceToolsTests()
+    public TypeToolsTests()
     {
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
         _roots = [_testRoot];
         var fileService = new FileService(new FileSystem());
-        _tools = new DeepIntelligenceTools(fileService, new TypeScanner(fileService), null!);
+        _tools = new TypeTools(fileService, null!, new TypeScanner(fileService));
 
         WriteFile("Actor/ActorBase.cs", """
             namespace Akka.Actor;

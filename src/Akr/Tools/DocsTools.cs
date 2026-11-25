@@ -1,7 +1,8 @@
 using System.ComponentModel;
 using System.Text;
-using Akr.Analysis;
-using Akr.Pipelines;
+using Akr.Registry;
+using Akr.Scanning;
+using Akr.Source;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -10,20 +11,22 @@ namespace Akr.Tools;
 public sealed class DocsTools
 {
     private readonly DocsIndex _docsIndex;
-    private readonly DocsPipeline _docsPipeline;
+    private readonly SourcePipeline _sourcePipeline;
+    private readonly FileService _fileService;
 
-    public DocsTools(DocsIndex docsIndex, DocsPipeline docsPipeline)
+    public DocsTools(DocsIndex docsIndex, SourcePipeline sourcePipeline, FileService fileService)
     {
         _docsIndex = docsIndex;
-        _docsPipeline = docsPipeline;
+        _sourcePipeline = sourcePipeline;
+        _fileService = fileService;
     }
 
-    [McpServerTool(Name = "docs_search"), Description("Search Akka.NET documentation for a topic or question. Returns relevant excerpts from getakka.net docs.")]
+    [McpServerTool(Name = "docs_search"), Description("Search Akka.NET documentation for a topic or question. Returns relevant excerpts from official Akka.NET docs.")]
     public async Task<string> SearchDocsAsync(
         [Description("Search query (e.g. 'cluster sharding', 'ask pattern', 'persistence')")] string query,
         CancellationToken cancellationToken = default)
     {
-        await _docsPipeline.BuildIndexAsync(cancellationToken);
+        await EnsureDocsIndexAsync(cancellationToken);
 
         var results = _docsIndex.Search(query);
         if (results.Count == 0)
@@ -53,7 +56,7 @@ public sealed class DocsTools
         [Description("Optional language filter (e.g. 'csharp', 'hocon'). Omit for all languages.")] string? language = null,
         CancellationToken cancellationToken = default)
     {
-        await _docsPipeline.BuildIndexAsync(cancellationToken);
+        await EnsureDocsIndexAsync(cancellationToken);
 
         var examples = _docsIndex.FindExamples(topic, language);
         if (examples.Count == 0)
@@ -89,5 +92,43 @@ public sealed class DocsTools
         }
 
         return sb.ToString();
+    }
+
+    private async Task EnsureDocsIndexAsync(CancellationToken cancellationToken)
+    {
+        if (_docsIndex.IsBuilt)
+        {
+            return;
+        }
+
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(null, cancellationToken);
+        var mainRoot = roots.FirstOrDefault(r => r.Contains(SourceCache.RepoName(RepoRegistry.MainRepo), StringComparison.OrdinalIgnoreCase));
+        if (mainRoot is null)
+        {
+            return;
+        }
+
+        var docsPath = _fileService.Combine(mainRoot, RepoRegistry.DocsPath);
+        if (!_fileService.DirectoryExists(docsPath))
+        {
+            return;
+        }
+
+        var entries = new List<DocsEntry>();
+        foreach (var (fullPath, relativePath) in _fileService.EnumerateFiles([docsPath], "*.md"))
+        {
+            var fileName = Path.GetFileNameWithoutExtension(fullPath);
+            var directory = Path.GetDirectoryName(relativePath)?.Replace('\\', '/') ?? "";
+            var content = System.Text.Encoding.UTF8.GetString(_fileService.ReadAllBytes(fullPath));
+
+            entries.Add(new DocsEntry(
+                FilePath: fullPath,
+                RelativePath: relativePath,
+                FileName: fileName,
+                Directory: directory,
+                Content: content));
+        }
+
+        _docsIndex.AddEntries(entries);
     }
 }

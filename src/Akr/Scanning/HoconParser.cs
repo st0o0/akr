@@ -1,4 +1,4 @@
-namespace Akr.Analysis;
+namespace Akr.Scanning;
 
 public static class HoconParser
 {

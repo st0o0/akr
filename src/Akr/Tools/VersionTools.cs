@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using System.Text;
-using Akr.Analysis;
 using Akr.Models;
-using Akr.Pipelines;
+using Akr.Scanning;
+using Akr.Source;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -13,14 +13,12 @@ public sealed class VersionTools
     private readonly FileService _fileService;
     private readonly DocsIndex _docsIndex;
     private readonly SourcePipeline _sourcePipeline;
-    private readonly DocsPipeline _docsPipeline;
 
-    public VersionTools(FileService fileService, DocsIndex docsIndex, SourcePipeline sourcePipeline, DocsPipeline docsPipeline)
+    public VersionTools(FileService fileService, DocsIndex docsIndex, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
         _docsIndex = docsIndex;
         _sourcePipeline = sourcePipeline;
-        _docsPipeline = docsPipeline;
     }
 
     [McpServerTool(Name = "source_diff"), Description("Compare a type's source code or config between two Akka.NET versions. Returns a unified diff.")]
@@ -86,7 +84,7 @@ public sealed class VersionTools
 
         try
         {
-            await _docsPipeline.BuildIndexAsync(cancellationToken);
+            // DocsIndex may already be built by a prior docs_search call
             var searchQuery = area ?? "migration upgrade";
             var docs = _docsIndex.Search(searchQuery, maxResults: 3);
             if (docs.Count > 0)

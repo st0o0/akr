@@ -47,8 +47,8 @@ public static class RepoRegistry
         ["Akka.Persistence.MongoDb.Hosting"] = new("akkadotnet/Akka.Persistence.MongoDB", "src/Akka.Persistence.MongoDb.Hosting"),
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    public const string DocsRepo = "akkadotnet/getakka.net";
-    public const string DocsSourcePath = "src/docs";
+    public const string MainRepo = "akkadotnet/akka.net";
+    public const string DocsPath = "docs/articles";
 
     private static readonly IReadOnlyCollection<string> _allRepos =
         _packages.Values.Select(e => e.Repo).Distinct(StringComparer.Ordinal).ToArray();

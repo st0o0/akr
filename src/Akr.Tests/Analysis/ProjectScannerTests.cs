@@ -1,5 +1,5 @@
 using System.IO.Abstractions;
-using Akr.Analysis;
+using Akr.Scanning;
 using Akr.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 

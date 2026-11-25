@@ -1,7 +1,7 @@
 using System.Formats.Tar;
 using System.IO.Abstractions;
 
-namespace Akr.Tools;
+namespace Akr;
 
 public sealed class FileService
 {

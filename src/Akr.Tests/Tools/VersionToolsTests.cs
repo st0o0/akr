@@ -1,4 +1,4 @@
-using Akr.Analysis;
+using Akr.Scanning;
 
 namespace Akr.Tests.Tools;
 

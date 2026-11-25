@@ -1,0 +1,133 @@
+using System.ComponentModel;
+using System.Text;
+using System.Text.RegularExpressions;
+using Akr.Source;
+using ModelContextProtocol.Server;
+
+namespace Akr.Tools;
+
+[McpServerToolType]
+public sealed partial class TestKitTools
+{
+    private readonly FileService _fileService;
+    private readonly SourcePipeline _sourcePipeline;
+
+    public TestKitTools(FileService fileService, SourcePipeline sourcePipeline)
+    {
+        _fileService = fileService;
+        _sourcePipeline = sourcePipeline;
+    }
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:virtual|static|async|override|sealed|new)\s+)*[\w<>\[\],.?]+\s+(\w+)\s*(?:<[^>(]*>)?\(", RegexOptions.NonBacktracking)]
+    private static partial Regex PublicMethodRegex();
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*class\s+(\w+)(?:<[^>]*>)?(?:\s*:\s*([^{\r\n]*))?", RegexOptions.NonBacktracking)]
+    private static partial Regex PublicClassRegex();
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*(?:class|interface|record|struct)\s+(\w+)", RegexOptions.NonBacktracking)]
+    private static partial Regex PublicTypeRegex();
+
+    private static string? ClassifyTestKit(string relative)
+    {
+        if (relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (relative.Contains("Akka.Hosting.TestKit", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Akka.Hosting.TestKit";
+        }
+
+        return relative.Contains("Akka.TestKit", StringComparison.OrdinalIgnoreCase) ? "Akka.TestKit" : null;
+    }
+
+    // ---------- testkit_helpers ----------
+
+    [McpServerTool(Name = "testkit_helpers"), Description("Catalog public utility and assertion methods in Akka TestKit source, grouped by purpose.")]
+    public async Task<string> TestKitHelpersAsync(
+        [Description("Optional method name filter")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return FindTestKitHelpers(roots, filter);
+    }
+
+    public string FindTestKitHelpers(IEnumerable<string> roots, string? filter = null)
+    {
+        var groups = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
+
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
+        {
+            if (ClassifyTestKit(relative) is null)
+            {
+                continue;
+            }
+
+            var currentType = _fileService.GetFileNameWithoutExtension(relative);
+            foreach (var line in _fileService.ReadAllLines(full))
+            {
+                var t = PublicTypeRegex().Match(line);
+                if (t.Success)
+                {
+                    currentType = t.Groups[1].Value;
+                    continue;
+                }
+
+                var m = PublicMethodRegex().Match(line);
+                if (!m.Success)
+                {
+                    continue;
+                }
+
+                var method = m.Groups[1].Value;
+                if (!string.IsNullOrWhiteSpace(filter) && !method.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var category = CategorizeHelper(method);
+                if (!groups.TryGetValue(category, out var set))
+                {
+                    groups[category] = set = new SortedSet<string>(StringComparer.Ordinal);
+                }
+
+                set.Add($"{currentType}.{method}");
+            }
+        }
+
+        if (groups.Count == 0)
+        {
+            return "No TestKit helpers found.";
+        }
+
+        var sb = new StringBuilder();
+        foreach (var (category, methods) in groups)
+        {
+            sb.AppendLine($"## {category}");
+            foreach (var method in methods)
+            {
+                sb.AppendLine($"  {method}");
+            }
+
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    private static string CategorizeHelper(string method) => method switch
+    {
+        _ when method.StartsWith("Expect", StringComparison.Ordinal) => "Expect (message assertions)",
+        _ when method.StartsWith("Assert", StringComparison.Ordinal) => "Assert",
+        _ when method.StartsWith("Await", StringComparison.Ordinal) => "Await (polling and waiting)",
+        _ when method.StartsWith("Within", StringComparison.Ordinal)
+            || method.StartsWith("Intercept", StringComparison.Ordinal) => "Timing and interception",
+        _ when method.StartsWith("Create", StringComparison.Ordinal)
+            || method.StartsWith("Child", StringComparison.Ordinal) => "Creation",
+        _ when method.StartsWith("Watch", StringComparison.Ordinal)
+            || method.StartsWith("Unwatch", StringComparison.Ordinal) => "Death watch",
+        _ => "Other"
+    };
+}

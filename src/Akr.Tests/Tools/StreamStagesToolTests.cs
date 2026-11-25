@@ -12,7 +12,7 @@ public sealed class StreamStagesToolTests : IDisposable
     public StreamStagesToolTests()
     {
         var fs = new FileService(new FileSystem());
-        _tools = new StreamTools(fs, new SourceSearcher(fs), null!);
+        _tools = new StreamTools(fs, null!);
         _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRoot);
 

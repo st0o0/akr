@@ -4,7 +4,7 @@ using Akr.Registry;
 using Akr.Tools;
 using Microsoft.Extensions.Logging;
 
-namespace Akr.Analysis;
+namespace Akr.Scanning;
 
 public sealed class ProjectScanner
 {

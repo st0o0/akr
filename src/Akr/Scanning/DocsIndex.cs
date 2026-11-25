@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Akr.Analysis;
+namespace Akr.Scanning;
 
 public sealed class DocsIndex
 {

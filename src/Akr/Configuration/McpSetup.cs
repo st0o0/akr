@@ -1,7 +1,7 @@
 using System.IO.Abstractions;
 using Akka.Hosting;
-using Akr.Analysis;
-using Akr.Pipelines;
+using Akr.Scanning;
+using Akr.Source;
 using Akr.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Terp.Hosting;
@@ -17,7 +17,6 @@ public sealed class McpSetup : ISetup<IServiceCollection>
         services.AddSingleton<SourceSearcher>();
         services.AddSingleton<TypeScanner>();
         services.AddSingleton<DocsIndex>();
-        services.AddSingleton<DeepIntelligenceTools>();
         services.AddSingleton<ProjectScanner>();
         services.AddSingleton(TimeProvider.System);
 
@@ -25,12 +24,20 @@ public sealed class McpSetup : ISetup<IServiceCollection>
 
         services.AddAkka("akr", (builder, _) => { });
 
+        services.AddSingleton<SourceCache>();
+        services.AddSingleton<VersionResolver>();
         services.AddSingleton<SourcePipeline>();
-        services.AddSingleton<DocsPipeline>();
 
         services.AddHostedService<ProjectContextInitializer>();
 
-        services.AddHttpClient<GitHubClient>(client =>
+        services.AddHttpClient<SourceFetcher>(client =>
+        {
+            var version = typeof(McpSetup).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{version}");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        });
+
+        services.AddHttpClient<VersionResolver>(client =>
         {
             var version = typeof(McpSetup).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
             client.DefaultRequestHeaders.UserAgent.ParseAdd($"akr/{version}");
@@ -51,12 +58,14 @@ public sealed class McpSetup : ISetup<IServiceCollection>
             })
             .WithStdioServerTransport()
             .WithTools<TypeTools>()
+            .WithTools<SearchTools>()
+            .WithTools<ConfigTools>()
             .WithTools<HostingTools>()
             .WithTools<StreamTools>()
-            .WithTools<DeepIntelligenceTools>()
-            .WithTools<StreamPersistenceTools>()
-            .WithTools<ConfigMigrationTools>()
-            .WithTools<EcosystemTools>()
+            .WithTools<PersistenceTools>()
+            .WithTools<SerializationTools>()
+            .WithTools<ClusterTools>()
+            .WithTools<TestKitTools>()
             .WithTools<DocsTools>()
             .WithTools<VersionTools>()
             .WithTools<ProjectContextTools>()

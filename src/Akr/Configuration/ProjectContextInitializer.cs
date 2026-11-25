@@ -1,4 +1,4 @@
-using Akr.Analysis;
+using Akr.Scanning;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

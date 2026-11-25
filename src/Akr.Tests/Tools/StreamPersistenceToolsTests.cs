@@ -6,11 +6,14 @@ namespace Akr.Tests.Tools;
 public sealed class StreamPersistenceToolsTests : IDisposable
 {
     private readonly string _root;
-    private readonly StreamPersistenceTools _tools;
+    private readonly StreamTools _tools;
+    private readonly PersistenceTools _persistence;
 
     public StreamPersistenceToolsTests()
     {
-        _tools = new StreamPersistenceTools(new FileService(new FileSystem()), null!);
+        var fs = new FileService(new FileSystem());
+        _tools = new StreamTools(fs, null!);
+        _persistence = new PersistenceTools(fs, null!);
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 
@@ -161,7 +164,7 @@ public sealed class StreamPersistenceToolsTests : IDisposable
     [Fact]
     public void Journals_FindsConcreteWithConfigSection()
     {
-        var plugins = _tools.FindPlugins(Roots, ["AsyncWriteJournal", "WriteJournalBase"], "journal");
+        var plugins = _persistence.FindPlugins(Roots, ["AsyncWriteJournal", "WriteJournalBase"], "journal");
 
         var p = Assert.Single(plugins);
         Assert.Equal("MemoryJournal", p.Name);
@@ -171,15 +174,15 @@ public sealed class StreamPersistenceToolsTests : IDisposable
     [Fact]
     public void Journals_Format_IncludesFile()
     {
-        var plugins = _tools.FindPlugins(Roots, ["AsyncWriteJournal"], "journal");
+        var plugins = _persistence.FindPlugins(Roots, ["AsyncWriteJournal"], "journal");
 
-        Assert.Contains("Akka.Persistence/Journal.cs", StreamPersistenceTools.FormatPlugins("Journal plugins", plugins));
+        Assert.Contains("Akka.Persistence/Journal.cs", PersistenceTools.FormatPlugins("Journal plugins", plugins));
     }
 
     [Fact]
     public void Snapshots_FindsStoreWithConfigSection()
     {
-        var plugins = _tools.FindPlugins(Roots, ["SnapshotStore"], "snapshot-store");
+        var plugins = _persistence.FindPlugins(Roots, ["SnapshotStore"], "snapshot-store");
 
         var p = Assert.Single(plugins);
         Assert.Equal("MemorySnapshotStore", p.Name);
@@ -188,12 +191,12 @@ public sealed class StreamPersistenceToolsTests : IDisposable
 
     [Fact]
     public void Snapshots_Empty_ReportsNone() =>
-        Assert.Contains("No snapshot", StreamPersistenceTools.FormatPlugins("Snapshot store plugins", []));
+        Assert.Contains("No snapshot", PersistenceTools.FormatPlugins("Snapshot store plugins", []));
 
     [Fact]
     public void Query_ListsProvidersAndQueryTypes()
     {
-        var result = _tools.FormatReadJournals(Roots);
+        var result = _persistence.FormatReadJournals(Roots);
 
         Assert.Contains("SqlReadJournalProvider", result);
         Assert.Contains("IEventsByTagQuery, IPersistenceIdsQuery", result);
@@ -201,12 +204,12 @@ public sealed class StreamPersistenceToolsTests : IDisposable
 
     [Fact]
     public void Query_NoMatches_ReportsNone() =>
-        Assert.Contains("No ReadJournal", _tools.FormatReadJournals(EmptyRoots));
+        Assert.Contains("No ReadJournal", _persistence.FormatReadJournals(EmptyRoots));
 
     [Fact]
     public void Adapters_ListsImplementationsAndConfig()
     {
-        var result = _tools.FormatAdapters(Roots);
+        var result = _persistence.FormatAdapters(Roots);
 
         Assert.Contains("TagAdapter", result);
         Assert.Contains("Upcaster", result);
@@ -215,5 +218,5 @@ public sealed class StreamPersistenceToolsTests : IDisposable
 
     [Fact]
     public void Adapters_NoMatches_ReportsNone() =>
-        Assert.Contains("No event adapters", _tools.FormatAdapters(EmptyRoots));
+        Assert.Contains("No event adapters", _persistence.FormatAdapters(EmptyRoots));
 }

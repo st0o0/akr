@@ -1,9 +1,8 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
-using Akr.Analysis;
 using Akr.Models;
-using Akr.Pipelines;
+using Akr.Source;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -49,57 +48,6 @@ public sealed partial class HostingTools
             }
 
             sb.AppendLine();
-        }
-
-        return sb.ToString();
-    }
-
-    [McpServerTool(Name = "config_reference"), Description("Look up HOCON config defaults from Akka.NET reference.conf files.")]
-    public async Task<string> LookupConfigAsync(
-        [Description("HOCON path to filter (e.g. akka.persistence, akka.remote). Omit for all config.")] string? path = null,
-        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
-        CancellationToken cancellationToken = default)
-    {
-        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindConfig(roots, path);
-    }
-
-    public string FindConfig(IEnumerable<string> roots, string? path)
-    {
-        var sb = new StringBuilder();
-        var hasPath = !string.IsNullOrWhiteSpace(path);
-
-        var files = _fileService.EnumerateConfigFiles(roots)
-            .OrderBy(f => f.Relative, StringComparer.Ordinal);
-
-        foreach (var (full, relative) in files)
-        {
-            string content;
-            if (hasPath)
-            {
-                var block = ExtractHoconBlock(_fileService.ReadAllLines(full), path!);
-                if (block is null)
-                {
-                    continue;
-                }
-
-                content = block;
-            }
-            else
-            {
-                content = _fileService.ReadAllText(full).TrimEnd();
-            }
-
-            sb.AppendLine($"--- {relative} ---");
-            sb.AppendLine(content);
-            sb.AppendLine();
-        }
-
-        if (sb.Length == 0)
-        {
-            return hasPath
-                ? $"No config found for path: {path}"
-                : "No reference.conf files found.";
         }
 
         return sb.ToString();
@@ -178,97 +126,403 @@ public sealed partial class HostingTools
         return sig[..end];
     }
 
-    public static string? ExtractHoconBlock(IReadOnlyList<string> lines, string path)
+    [GeneratedRegex(@"public\s+static\s+\S+\s+(?<name>(With|Add)\w+)\s*[\(<]", RegexOptions.NonBacktracking)]
+    private static partial Regex NamedMethodPattern();
+
+    [GeneratedRegex(@"\bakka(?:\.[A-Za-z0-9_\-]+)+", RegexOptions.NonBacktracking)]
+    private static partial Regex HoconKeyPattern();
+
+    [GeneratedRegex(
+        @"(must|should|needs? to|has to)\s+be\s+(called|registered|configured|invoked|set)|(before|after)\s+(calling|registering|configuring)|call(ed)?\s+(this\s+)?(before|after)|requires?\s+(that\s+)?\w*(With|Add)\w+|order\s+(matters|of)",
+        RegexOptions.NonBacktracking | RegexOptions.IgnoreCase)]
+    private static partial Regex OrderingPattern();
+
+    [GeneratedRegex(@"GetRequiredService<|GetService<|ActorRegistry|registry\.(Try)?Get<|DependencyResolver",
+        RegexOptions.NonBacktracking)]
+    private static partial Regex DiHintPattern();
+
+    private static readonly Dictionary<string, string[]> _fallbackHostingMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        var segments = path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (segments.Length == 0)
+        ["WithClustering"] = ["akka.cluster"],
+        ["WithRemoting"] = ["akka.remote"],
+        ["WithDistributedData"] = ["akka.cluster.distributed-data"],
+        ["WithSingleton"] = ["akka.cluster.singleton"],
+        ["WithShardRegion"] = ["akka.cluster.sharding"],
+        ["WithDistributedPubSub"] = ["akka.cluster.pub-sub"],
+        ["WithJournal"] = ["akka.persistence.journal"],
+        ["WithSnapshotStore"] = ["akka.persistence.snapshot-store"],
+        ["WithCoordinatedShutdown"] = ["akka.coordinated-shutdown"],
+    };
+
+    private static readonly string[] _recommendedOrder =
+    [
+        "1. Remote / transport (WithRemoting)",
+        "2. Cluster (WithClustering, WithClusterBootstrap, Akka.Management)",
+        "3. Persistence (WithJournal, WithSnapshotStore, WithSqlPersistence)",
+        "4. Sharding / Singleton / Distributed PubSub (WithShardRegion, WithSingleton, WithDistributedPubSub)",
+        "5. Actors (WithActors) - last, so ActorRegistry dependencies from earlier steps are available",
+    ];
+
+    [McpServerTool(Name = "hosting_to_hocon"),
+     Description("Bidirectional mapping between Akka.Hosting With*/Add* methods and HOCON config keys.")]
+    public async Task<string> HostingToHoconAsync(
+        [Description("Hosting method (e.g. WithClustering) or HOCON path (e.g. akka.cluster.roles)")]
+        string query,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")]
+        string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return MapQuery(roots, query);
+    }
+
+    [McpServerTool(Name = "hosting_startup_order"),
+     Description("Registration ordering constraints and DI resolution hints from Akka.Hosting source.")]
+    public async Task<string> StartupOrderAsync(
+        [Description("Optional keyword to filter by file path")] string? filter = null,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")]
+        string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return FindStartupOrder(roots, filter);
+    }
+
+    public Dictionary<string, string?> CollectConfig(IEnumerable<string> roots)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var (full, _) in _fileService.EnumerateConfigFiles(roots))
         {
-            return null;
+            foreach (var entry in ConfigTools.ParseConfig(_fileService.ReadAllLines(full)))
+            {
+                result[entry.Path] = entry.Value;
+            }
         }
 
-        var index = 0;
-        var remaining = segments.Length;
-        var keyLine = -1;
+        return result;
+    }
 
-        while (remaining > 0)
+    // ---- hosting mapping ----
+
+    public Dictionary<string, SortedSet<string>> CollectHostingKeys(IEnumerable<string> roots)
+    {
+        var map = new Dictionary<string, SortedSet<string>>(StringComparer.Ordinal);
+        foreach (var (full, _) in _fileService.EnumerateFiles(roots, "*.cs"))
         {
-            var found = false;
-            for (var take = remaining; take >= 1 && !found; take--)
+            string? current = null;
+            foreach (var line in _fileService.ReadLines(full))
             {
-                var key = string.Join('.', segments.Skip(segments.Length - remaining).Take(take));
-                var match = FindKeyLine(lines, index, key);
-                if (match >= 0)
+                var m = NamedMethodPattern().Match(line);
+                if (m.Success)
                 {
-                    keyLine = match;
-                    index = match + 1;
-                    remaining -= take;
-                    found = true;
+                    current = m.Groups["name"].Value;
+                }
+
+                if (current is null)
+                {
+                    continue;
+                }
+
+                foreach (Match k in HoconKeyPattern().Matches(line))
+                {
+                    if (!map.TryGetValue(current, out var set))
+                    {
+                        set = new SortedSet<string>(StringComparer.Ordinal);
+                        map[current] = set;
+                    }
+
+                    set.Add(k.Value);
+                }
+            }
+        }
+
+        return map;
+    }
+
+    public string MapQuery(IEnumerable<string> roots, string query)
+    {
+        var rootList = roots.ToList();
+        var scannedMap = CollectHostingKeys(rootList);
+        var merged = MergeWithFallback(scannedMap);
+        var q = query.Trim();
+        var sb = new StringBuilder();
+
+        if (q.StartsWith("akka", StringComparison.Ordinal))
+        {
+            var config = CollectConfig(rootList);
+            sb.AppendLine("| HOCON path | Hosting method |");
+            sb.AppendLine("|---|---|");
+            var rows = 0;
+            foreach (var (method, keys) in merged.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            {
+                foreach (var key in keys.Where(k => PathMatches(k, q)))
+                {
+                    var inRef = config.Keys.Any(c => c == key || c.StartsWith(key + ".", StringComparison.Ordinal))
+                        ? string.Empty
+                        : " (not in reference.conf)";
+                    sb.AppendLine($"| {key}{inRef} | {method} |");
+                    rows++;
                 }
             }
 
-            if (!found)
-            {
-                return null;
-            }
+            return rows == 0 ? $"No Hosting method found for HOCON path: {q}" : sb.ToString();
         }
 
-        return CollectBlock(lines, keyLine);
-    }
-
-    private static int FindKeyLine(IReadOnlyList<string> lines, int start, string key)
-    {
-        for (var i = start; i < lines.Count; i++)
+        sb.AppendLine("| Hosting method | HOCON keys |");
+        sb.AppendLine("|---|---|");
+        var found = 0;
+        foreach (var (method, keys) in merged.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
-            var trimmed = lines[i].TrimStart();
-            if (!trimmed.StartsWith(key, StringComparison.Ordinal))
+            if (!method.Contains(q, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            if (trimmed.Length == key.Length)
-            {
-                return i;
-            }
-
-            var next = trimmed[key.Length];
-            if (char.IsWhiteSpace(next) || next is '{' or '=' or ':')
-            {
-                return i;
-            }
+            var curatedOnly = !scannedMap.ContainsKey(method);
+            var label = curatedOnly ? " (curated)" : "";
+            sb.AppendLine($"| {method} | {string.Join(", ", keys)}{label} |");
+            found++;
         }
 
-        return -1;
+        return found == 0 ? $"No HOCON keys found for Hosting method: {q}" : sb.ToString();
     }
 
-    private static string CollectBlock(IReadOnlyList<string> lines, int keyLine)
+    private static Dictionary<string, SortedSet<string>> MergeWithFallback(
+        Dictionary<string, SortedSet<string>> scanned)
     {
-        var collected = new List<string>();
-        var depth = 0;
-        var opened = false;
-
-        for (var i = keyLine; i < lines.Count; i++)
+        var merged = new Dictionary<string, SortedSet<string>>(scanned, StringComparer.Ordinal);
+        foreach (var (method, keys) in _fallbackHostingMap)
         {
-            collected.Add(lines[i]);
-            foreach (var c in HoconParser.StripComment(lines[i]))
+            if (!merged.TryGetValue(method, out var set))
             {
-                if (c == '{')
-                {
-                    depth++;
-                    opened = true;
-                }
-                else if (c == '}')
-                {
-                    depth--;
-                }
+                set = new SortedSet<string>(StringComparer.Ordinal);
+                merged[method] = set;
             }
 
-            if (depth <= 0 && (opened || i == keyLine))
+            foreach (var key in keys)
             {
-                break;
+                set.Add(key);
             }
         }
 
-        return string.Join('\n', collected);
+        return merged;
     }
 
+    private static bool PathMatches(string key, string query) =>
+        key == query
+        || key.StartsWith(query + ".", StringComparison.Ordinal)
+        || query.StartsWith(key + ".", StringComparison.Ordinal);
+
+    // ---- startup order ----
+
+    public string FindStartupOrder(IEnumerable<string> roots, string? filter)
+    {
+        var constraints = new List<string>();
+        var hints = new List<string>();
+
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
+        {
+            if (!string.IsNullOrEmpty(filter) && !relative.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var lines = _fileService.ReadAllLines(full);
+            var isHosting = relative.Contains("Hosting", StringComparison.OrdinalIgnoreCase);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var t = lines[i].Trim();
+                var isComment = t.StartsWith("//", StringComparison.Ordinal) || t.StartsWith('*');
+                if (isComment && OrderingPattern().IsMatch(t))
+                {
+                    constraints.Add($"{relative}:{i + 1}: {t.TrimStart('/', '*', ' ')}");
+                }
+                else if (isHosting && !isComment && hints.Count < 50 && DiHintPattern().IsMatch(t))
+                {
+                    hints.Add($"{relative}:{i + 1}: {t}");
+                }
+            }
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Recommended registration order:");
+        foreach (var step in _recommendedOrder)
+        {
+            sb.AppendLine($"  {step}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine(constraints.Count == 0 ? "No ordering comments found." : "Ordering constraints found in source:");
+        foreach (var c in constraints.Take(50))
+        {
+            sb.AppendLine($"  {c}");
+        }
+
+        if (hints.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("DI resolution hints:");
+            foreach (var h in hints)
+            {
+                sb.AppendLine($"  {h}");
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private const int MaxMatchesPerCategory = 15;
+
+    private static readonly (string Title, Regex Pattern)[] _diCategories =
+    [
+        ("Resolve actors via DI (IRequiredActor<T>)", new Regex(@"IRequiredActor<", RegexOptions.NonBacktracking)),
+        ("ActorRegistry", new Regex(@"\bActorRegistry\b", RegexOptions.NonBacktracking)),
+        ("Register services and actors", new Regex(@"\b(?:WithActors|AddAkka|WithActorRegistry)\b", RegexOptions.NonBacktracking)),
+        ("Props with DI", new Regex(@"DependencyResolver|\bPropsFor\b|GetRequiredService|\bProps<|\.Props\(", RegexOptions.NonBacktracking))
+    ];
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:virtual|static|async|override|sealed|new)\s+)*[\w<>\[\],.?]+\s+(\w+)\s*(?:<[^>(]*>)?\(", RegexOptions.NonBacktracking)]
+    private static partial Regex PublicMethodRegex();
+
+    [GeneratedRegex(@"\bpublic\s+(?:(?:abstract|sealed|static|partial)\s+)*class\s+(\w+)(?:<[^>]*>)?(?:\s*:\s*([^{\r\n]*))?", RegexOptions.NonBacktracking)]
+    private static partial Regex PublicClassRegex();
+
+    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
+    private static partial Regex WhitespaceRegex();
+
+    // ---------- hosting_di_patterns ----------
+
+    [McpServerTool(Name = "hosting_di_patterns"), Description("Catalog of dependency injection patterns in Akka.Hosting source (IRequiredActor, ActorRegistry, Props with DI).")]
+    public async Task<string> HostingDiPatternsAsync(
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return FindDiPatterns(roots);
+    }
+
+    public string FindDiPatterns(IEnumerable<string> roots)
+    {
+        var buckets = _diCategories.Select(_ => new List<string>()).ToArray();
+
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
+        {
+            if (!relative.Contains("Hosting", StringComparison.OrdinalIgnoreCase)
+                || relative.Contains("TestKit", StringComparison.OrdinalIgnoreCase)
+                || relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var lines = _fileService.ReadAllLines(full);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                for (var c = 0; c < _diCategories.Length; c++)
+                {
+                    if (buckets[c].Count < MaxMatchesPerCategory && _diCategories[c].Pattern.IsMatch(lines[i]))
+                    {
+                        var snippet = string.Join('\n', lines[i..Math.Min(lines.Length, i + 3)].Select(l => "    " + l.TrimEnd()));
+                        buckets[c].Add($"  {relative}:{i + 1}\n{snippet}");
+                    }
+                }
+            }
+        }
+
+        if (buckets.All(b => b.Count == 0))
+        {
+            return "No Akka.Hosting DI patterns found.";
+        }
+
+        var sb = new StringBuilder();
+        for (var c = 0; c < _diCategories.Length; c++)
+        {
+            if (buckets[c].Count == 0)
+            {
+                continue;
+            }
+
+            sb.AppendLine($"## {_diCategories[c].Title}");
+            foreach (var entry in buckets[c])
+            {
+                sb.AppendLine(entry);
+            }
+
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    // ---------- hosting_testkit ----------
+
+    [McpServerTool(Name = "hosting_testkit"), Description("Compare Akka.TestKit and Akka.Hosting.TestKit: base classes and assertion methods.")]
+    public async Task<string> HostingTestKitAsync(
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return CompareTestKits(roots);
+    }
+
+    public string CompareTestKits(IEnumerable<string> roots)
+    {
+        var rows = new List<(string Package, string Class, string Base, string Assertions)>();
+
+        foreach (var (full, relative) in _fileService.EnumerateFiles(roots, "*.cs"))
+        {
+            var package = ClassifyTestKit(relative);
+            if (package is null)
+            {
+                continue;
+            }
+
+            var text = _fileService.ReadAllText(full);
+            var assertions = PublicMethodRegex().Matches(text)
+                .Select(m => m.Groups[1].Value)
+                .Where(n => n.StartsWith("Expect", StringComparison.Ordinal)
+                    || n.StartsWith("Assert", StringComparison.Ordinal)
+                    || n.StartsWith("Await", StringComparison.Ordinal))
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToList();
+
+            foreach (Match m in PublicClassRegex().Matches(text))
+            {
+                var baseType = m.Groups[2].Success && m.Groups[2].Value.Trim().Length > 0
+                    ? WhitespaceRegex().Replace(m.Groups[2].Value, " ").Trim()
+                    : "-";
+                rows.Add((package, m.Groups[1].Value, baseType, assertions.Count == 0 ? "-" : string.Join(", ", assertions)));
+            }
+        }
+
+        if (rows.Count == 0)
+        {
+            return "No TestKit classes found.";
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("| Package | Class | Base | Assertion methods |");
+        sb.AppendLine("|---------|-------|------|-------------------|");
+        foreach (var r in rows.OrderBy(r => r.Package, StringComparer.Ordinal).ThenBy(r => r.Class, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"| {r.Package} | {r.Class} | {r.Base} | {r.Assertions} |");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string? ClassifyTestKit(string relative)
+    {
+        if (relative.Contains(".Tests", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (relative.Contains("Akka.Hosting.TestKit", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Akka.Hosting.TestKit";
+        }
+
+        return relative.Contains("Akka.TestKit", StringComparison.OrdinalIgnoreCase) ? "Akka.TestKit" : null;
+    }
 }

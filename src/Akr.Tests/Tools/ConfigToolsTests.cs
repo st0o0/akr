@@ -3,14 +3,17 @@ using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class ConfigMigrationToolsTests : IDisposable
+public sealed class ConfigToolsTests : IDisposable
 {
     private readonly string _root;
-    private readonly ConfigMigrationTools _tools;
+    private readonly ConfigTools _tools;
+    private readonly HostingTools _hosting;
 
-    public ConfigMigrationToolsTests()
+    public ConfigToolsTests()
     {
-        _tools = new ConfigMigrationTools(new FileService(new FileSystem()), null!);
+        var fs = new FileService(new FileSystem());
+        _tools = new ConfigTools(fs, null!);
+        _hosting = new HostingTools(fs, null!);
         _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_root);
 
@@ -52,7 +55,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void ParseConfig_builds_full_paths()
     {
-        var entries = ConfigMigrationTools.ParseConfig(File.ReadAllLines(Path.Combine(_root, "src", "reference.conf")));
+        var entries = ConfigTools.ParseConfig(File.ReadAllLines(Path.Combine(_root, "src", "reference.conf")));
         var paths = entries.Select(e => e.Path).ToList();
 
         Assert.Contains("akka.actor.provider", paths);
@@ -79,7 +82,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_method_to_keys()
     {
-        var output = _tools.MapQuery([_root], "WithClustering");
+        var output = _hosting.MapQuery([_root], "WithClustering");
 
         Assert.Contains("akka.cluster.roles", output);
     }
@@ -87,16 +90,16 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_key_to_method()
     {
-        var output = _tools.MapQuery([_root], "akka.cluster.roles");
+        var output = _hosting.MapQuery([_root], "akka.cluster.roles");
 
         Assert.Contains("WithClustering", output);
-        Assert.Contains("No Hosting method found", _tools.MapQuery([_root], "akka.zzz"));
+        Assert.Contains("No Hosting method found", _hosting.MapQuery([_root], "akka.zzz"));
     }
 
     [Fact]
     public void StartupOrder_finds_constraints_and_di_hints()
     {
-        var output = _tools.FindStartupOrder([_root], null);
+        var output = _hosting.FindStartupOrder([_root], null);
 
         Assert.Contains("Recommended registration order", output);
         Assert.Contains("must be called before WithActors", output);
@@ -106,7 +109,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void StartupOrder_filter_excludes_files()
     {
-        var output = _tools.FindStartupOrder([_root], "nomatch");
+        var output = _hosting.FindStartupOrder([_root], "nomatch");
 
         Assert.Contains("No ordering comments found", output);
     }
@@ -117,7 +120,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         var a = new Dictionary<string, string?> { ["x"] = "1", ["y"] = "2", ["z"] = "3" };
         var b = new Dictionary<string, string?> { ["x"] = "1", ["y"] = "9", ["w"] = "4" };
 
-        var diff = ConfigMigrationTools.DiffConfig(a, b);
+        var diff = ConfigTools.DiffConfig(a, b);
 
         Assert.Equal(["w"], diff.Added);
         Assert.Equal(["z"], diff.Removed);
@@ -128,10 +131,10 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     public void DiffConfig_against_empty_lists_all_keys_as_added()
     {
         var current = _tools.CollectConfig([_root]);
-        var diff = ConfigMigrationTools.DiffConfig(new Dictionary<string, string?>(), current);
+        var diff = ConfigTools.DiffConfig(new Dictionary<string, string?>(), current);
 
         Assert.Equal(current.Count, diff.Added.Count);
-        Assert.Contains("+ akka.cluster.roles", ConfigMigrationTools.FormatDiff(diff, current));
+        Assert.Contains("+ akka.cluster.roles", ConfigTools.FormatDiff(diff, current));
     }
 
     [Fact]
@@ -160,7 +163,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Directory.CreateDirectory(emptyRoot);
         try
         {
-            var output = _tools.MapQuery([emptyRoot], "WithClustering");
+            var output = _hosting.MapQuery([emptyRoot], "WithClustering");
 
             Assert.Contains("WithClustering", output);
             Assert.Contains("akka.cluster", output);
@@ -175,7 +178,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_regex_takes_precedence_over_fallback()
     {
-        var output = _tools.MapQuery([_root], "WithClustering");
+        var output = _hosting.MapQuery([_root], "WithClustering");
 
         Assert.Contains("akka.cluster.roles", output);
         Assert.DoesNotContain("curated", output);
@@ -188,7 +191,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Directory.CreateDirectory(emptyRoot);
         try
         {
-            var output = _tools.MapQuery([emptyRoot], "WithZzzNonexistent");
+            var output = _hosting.MapQuery([emptyRoot], "WithZzzNonexistent");
 
             Assert.Contains("No HOCON keys found", output);
         }
@@ -201,7 +204,7 @@ public sealed class ConfigMigrationToolsTests : IDisposable
     [Fact]
     public void MapQuery_merges_regex_and_fallback_keys()
     {
-        var output = _tools.MapQuery([_root], "WithClustering");
+        var output = _hosting.MapQuery([_root], "WithClustering");
 
         Assert.Contains("akka.cluster.roles", output);
         Assert.Contains("akka.cluster", output);
@@ -215,13 +218,13 @@ public sealed class ConfigMigrationToolsTests : IDisposable
         Directory.CreateDirectory(emptyRoot);
         try
         {
-            var journal = _tools.MapQuery([emptyRoot], "WithJournal");
+            var journal = _hosting.MapQuery([emptyRoot], "WithJournal");
             Assert.Contains("akka.persistence.journal", journal);
 
-            var snapshot = _tools.MapQuery([emptyRoot], "WithSnapshotStore");
+            var snapshot = _hosting.MapQuery([emptyRoot], "WithSnapshotStore");
             Assert.Contains("akka.persistence.snapshot-store", snapshot);
 
-            var shutdown = _tools.MapQuery([emptyRoot], "WithCoordinatedShutdown");
+            var shutdown = _hosting.MapQuery([emptyRoot], "WithCoordinatedShutdown");
             Assert.Contains("akka.coordinated-shutdown", shutdown);
         }
         finally

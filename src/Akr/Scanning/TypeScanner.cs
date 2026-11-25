@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Akr.Models;
 using Akr.Tools;
 
-namespace Akr.Analysis;
+namespace Akr.Scanning;
 
 public sealed partial class TypeScanner
 {

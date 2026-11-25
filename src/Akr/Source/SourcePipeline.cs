@@ -1,19 +1,24 @@
 using Akka.Actor;
 using Akka.Streams.Dsl;
 using Akr.Registry;
+using AkkaSource = Akka.Streams.Dsl.Source;
 
-namespace Akr.Pipelines;
+namespace Akr.Source;
 
 public sealed class SourcePipeline
 {
-    private readonly GitHubClient _github;
+    private readonly SourceFetcher _fetcher;
+    private readonly VersionResolver _resolver;
+    private readonly SourceCache _cache;
     private readonly ActorSystem _actorSystem;
     private readonly Dictionary<string, IReadOnlyList<string>> _cachedRootsByVersion = new(StringComparer.Ordinal);
     private IReadOnlyList<string>? _cachedRoots;
 
-    public SourcePipeline(GitHubClient github, ActorSystem actorSystem)
+    public SourcePipeline(SourceFetcher fetcher, VersionResolver resolver, SourceCache cache, ActorSystem actorSystem)
     {
-        _github = github;
+        _fetcher = fetcher;
+        _resolver = resolver;
+        _cache = cache;
         _actorSystem = actorSystem;
     }
 
@@ -31,9 +36,12 @@ public sealed class SourcePipeline
 
         var repos = RepoRegistry.GetAllRepos().Distinct(StringComparer.Ordinal).ToList();
 
-        var roots = await Source.From(repos)
-            .SelectAsyncUnordered(4, repo =>
-                _github.EnsureSourceForVersionAsync(repo, version, cancellationToken))
+        var roots = await AkkaSource.From(repos)
+            .SelectAsyncUnordered(4, async repo =>
+            {
+                var tagFormat = _resolver.GetTagFormat(repo, version);
+                return await _fetcher.EnsureSourceAsync(repo, version, tagFormat, cancellationToken);
+            })
             .RunWith(Sink.Seq<string>(), _actorSystem);
 
         var result = roots.ToList();
@@ -50,9 +58,13 @@ public sealed class SourcePipeline
 
         var repos = RepoRegistry.GetAllRepos().Distinct(StringComparer.Ordinal).ToList();
 
-        var roots = await Source.From(repos)
-            .SelectAsyncUnordered(4, repo =>
-                _github.EnsureSourceAsync(repo, cancellationToken))
+        var roots = await AkkaSource.From(repos)
+            .SelectAsyncUnordered(4, async repo =>
+            {
+                var version = await _resolver.ResolveLatestAsync(repo, cancellationToken);
+                var tagFormat = _resolver.GetTagFormat(repo);
+                return await _fetcher.EnsureSourceAsync(repo, version, tagFormat, cancellationToken);
+            })
             .RunWith(Sink.Seq<string>(), _actorSystem);
 
         var result = roots.ToList();

@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using Akr.Models;
-using Akr.Pipelines;
+using Akr.Source;
 using ModelContextProtocol.Server;
 
 namespace Akr.Tools;
@@ -11,67 +11,12 @@ namespace Akr.Tools;
 public sealed partial class StreamTools
 {
     private readonly FileService _fileService;
-    private readonly SourceSearcher _sourceSearcher;
     private readonly SourcePipeline _sourcePipeline;
 
-    public StreamTools(FileService fileService, SourceSearcher sourceSearcher, SourcePipeline sourcePipeline)
+    public StreamTools(FileService fileService, SourcePipeline sourcePipeline)
     {
         _fileService = fileService;
-        _sourceSearcher = sourceSearcher;
         _sourcePipeline = sourcePipeline;
-    }
-
-    [McpServerTool(Name = "search_source"), Description("Search across cached Akka.NET source code using regex patterns.")]
-    public async Task<string> SearchAsync(
-        [Description("Regex pattern to search for")] string query,
-        [Description("File glob pattern (default: *.cs)")] string? filePattern = null,
-        [Description("Maximum results to return (default: 20)")] int? maxResults = null,
-        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
-        CancellationToken cancellationToken = default)
-    {
-        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        if (roots.Count == 0)
-        {
-            return "No Akka.NET source available.";
-        }
-
-        IReadOnlyList<SearchResult> results;
-        try
-        {
-            results = _sourceSearcher.Search(roots, query, filePattern ?? "*.cs", maxResults ?? 20);
-        }
-        catch (RegexParseException ex)
-        {
-            return $"Invalid regex pattern: {ex.Message}";
-        }
-
-        if (results.Count == 0)
-        {
-            return $"No matches found for pattern: {query}";
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine($"Found {results.Count} match(es):");
-        sb.AppendLine();
-
-        foreach (var result in results)
-        {
-            sb.AppendLine($"--- {result.File}:{result.LineNumber} ---");
-            foreach (var line in result.ContextBefore)
-            {
-                sb.AppendLine($"  {line}");
-            }
-
-            sb.AppendLine($"> {result.MatchingLine}");
-            foreach (var line in result.ContextAfter)
-            {
-                sb.AppendLine($"  {line}");
-            }
-
-            sb.AppendLine();
-        }
-
-        return sb.ToString();
     }
 
     [McpServerTool(Name = "stream_stages"), Description("Catalog built-in Akka.Streams stages with shape classification.")]
@@ -211,5 +156,190 @@ public sealed partial class StreamTools
         }
 
         return Categories.Count;
+    }
+
+    private const string NoSource = "No Akka.NET source available.";
+    private static readonly string[] _attributeBases = ["IAttribute"];
+
+    [GeneratedRegex(@"^\s*public\s+(?<sig>[^;{=]*\([^)]*\))", RegexOptions.NonBacktracking)]
+    private static partial Regex PublicMethodPattern();
+
+    [GeneratedRegex(@"^\s*(?:public|internal)\s+static\s+(?:readonly\s+)?[^=;\r\n]*\b(?:Default|Instance|None)\w*\s*(?:=\s*[^;\r\n]+;|\{[^}]*\}\s*=\s*[^;\r\n]+;)", RegexOptions.Multiline | RegexOptions.NonBacktracking)]
+    private static partial Regex DefaultPattern();
+
+    [GeneratedRegex(@"\bclass\s+GraphDsl\b|\bclass\s+Builder\b", RegexOptions.NonBacktracking)]
+    private static partial Regex GraphDslClassPattern();
+
+    [GeneratedRegex(@"<[^>]*>", RegexOptions.NonBacktracking)]
+    private static partial Regex XmlTag();
+
+    [GeneratedRegex(@"\s+", RegexOptions.NonBacktracking)]
+    private static partial Regex Whitespace();
+
+    [McpServerTool(Name = "stage_detail"), Description("Get the full source of a specific Akka.Streams stage by class name.")]
+    public async Task<string> StageDetailAsync(
+        [Description("Stage class name (e.g. Merge, Broadcast, Buffer)")] string stage,
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return roots.Count == 0 ? NoSource : FormatStageDetail(roots, stage);
+    }
+
+    [McpServerTool(Name = "graph_dsl_operators"), Description("List GraphDSL builder operators and their signatures from Akka.Streams source.")]
+    public async Task<string> GraphDslOperatorsAsync(
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return roots.Count == 0 ? NoSource : FormatGraphDsl(roots);
+    }
+
+    [McpServerTool(Name = "stream_attributes"), Description("Catalog configurable Akka.Streams attributes with their defaults.")]
+    public async Task<string> StreamAttributesAsync(
+        [Description("Optional Akka.NET version to target (e.g. \"1.5.52\"). Omit for project-detected or latest.")] string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
+        return roots.Count == 0 ? NoSource : FormatAttributes(roots);
+    }
+
+    public string FormatStageDetail(IReadOnlyList<string> roots, string stage)
+    {
+        var results = TypeTools.FindType(_fileService, roots, stage, fullSource: true)
+            .Where(r => r.File.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase) ||
+                        r.Source.Contains("namespace Akka.Streams", StringComparison.Ordinal))
+            .ToList();
+
+        if (results.Count == 0)
+        {
+            return $"Stage '{stage}' not found in Akka.Streams source.";
+        }
+
+        var sb = new StringBuilder();
+        foreach (var r in results)
+        {
+            sb.AppendLine($"--- {r.File} ---");
+            sb.AppendLine(r.Source);
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    public string FormatGraphDsl(IReadOnlyList<string> roots)
+    {
+        var sb = new StringBuilder();
+        var count = 0;
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.cs"))
+        {
+            if (!file.Relative.Contains("Akka.Streams", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var content = _fileService.ReadAllText(file.Full);
+            if (!GraphDslClassPattern().IsMatch(content))
+            {
+                continue;
+            }
+
+            var doc = new List<string>();
+            var header = false;
+            foreach (var raw in content.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (line.StartsWith("///", StringComparison.Ordinal))
+                {
+                    var text = XmlTag().Replace(line[3..], "").Trim();
+                    if (text.Length > 0)
+                    {
+                        doc.Add(text);
+                    }
+
+                    continue;
+                }
+
+                var m = PublicMethodPattern().Match(line);
+                if (m.Success && !line.Contains(" class ", StringComparison.Ordinal))
+                {
+                    if (!header)
+                    {
+                        sb.AppendLine($"--- {file.Relative} ---");
+                        header = true;
+                    }
+
+                    var sig = Whitespace().Replace(m.Groups["sig"].Value.Trim(), " ");
+                    sb.AppendLine(doc.Count > 0 ? $"  {sig}  // {doc[0]}" : $"  {sig}");
+                    count++;
+                }
+
+                if (line.Length > 0 && !line.StartsWith('[') && !line.StartsWith("//", StringComparison.Ordinal))
+                {
+                    doc.Clear();
+                }
+            }
+
+            if (header)
+            {
+                sb.AppendLine();
+            }
+        }
+
+        return count == 0 ? "No GraphDSL operators found in Akka.Streams source." : $"Found {count} GraphDSL operator(s):\n\n{sb}";
+    }
+
+    public string FormatAttributes(IReadOnlyList<string> roots)
+    {
+        var sb = new StringBuilder();
+        var count = 0;
+        foreach (var file in _fileService.EnumerateFiles(roots, "*.cs"))
+        {
+            var content = _fileService.ReadAllText(file.Full);
+            var attrs = ClassPattern().Matches(content)
+                .Where(m => HasBase(m.Groups["bases"].Value, _attributeBases))
+                .Select(m => m.Groups["name"].Value)
+                .ToList();
+            if (attrs.Count == 0)
+            {
+                continue;
+            }
+
+            sb.AppendLine($"--- {file.Relative} ---");
+            foreach (var a in attrs)
+            {
+                sb.AppendLine($"  {a}");
+                count++;
+            }
+
+            foreach (Match d in DefaultPattern().Matches(content))
+            {
+                sb.AppendLine($"    default: {Whitespace().Replace(d.Value.Trim(), " ")}");
+            }
+
+            sb.AppendLine();
+        }
+
+        return count == 0 ? "No stream attributes found." : $"Found {count} attribute(s):\n\n{sb}";
+    }
+
+    private static bool HasBase(string bases, string[] names)
+    {
+        foreach (var part in bases.Split(','))
+        {
+            var name = part.Trim();
+            var lt = name.IndexOf('<');
+            if (lt >= 0)
+            {
+                name = name[..lt];
+            }
+
+            if (names.Contains(name[(name.LastIndexOf('.') + 1)..]))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
