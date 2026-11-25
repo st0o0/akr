@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup Label="MCP">
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.1" />
     <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
     <PackageVersion Include="System.IO.Abstractions" Version="23.1.0" />
     <PackageVersion Include="Terp" Version="0.2.1" />

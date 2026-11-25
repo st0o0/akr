@@ -1,20 +1,18 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Models;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class StreamStagesToolTests : IDisposable
+public sealed class StreamStagesToolTests
 {
-    private readonly string _testRoot;
+    private const string TestRoot = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly StreamTools _tools;
 
     public StreamStagesToolTests()
     {
-        var fs = new FileService(new FileSystem());
-        _tools = new StreamTools(fs, null!);
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
+        _tools = new StreamTools(new FileService(_fs), null!);
 
         WriteFile("Akka.Streams/Implementation/Stages.cs", """
             namespace Akka.Streams.Implementation;
@@ -51,7 +49,7 @@ public sealed class StreamStagesToolTests : IDisposable
             """);
     }
 
-    private IReadOnlyList<StageInfo> Find(string? filter = null) => _tools.FindStages([_testRoot], filter);
+    private IReadOnlyList<StageInfo> Find(string? filter = null) => _tools.FindStages([TestRoot], filter);
 
     [Fact]
     public void GraphStage_with_FlowShape_is_Flow()
@@ -120,10 +118,8 @@ public sealed class StreamStagesToolTests : IDisposable
 
     private void WriteFile(string relativePath, string content)
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, content);
+        var fullPath = _fs.Path.Combine(TestRoot, relativePath);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
+        _fs.File.WriteAllText(fullPath, content);
     }
-
-    public void Dispose() => Directory.Delete(_testRoot, recursive: true);
 }

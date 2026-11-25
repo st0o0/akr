@@ -1,21 +1,20 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class TypeToolsTests : IDisposable
+public sealed class TypeToolsTests
 {
-    private readonly string _testRoot;
+    private const string TestRoot = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly IReadOnlyList<string> _roots;
     private readonly TypeTools _tools;
 
     public TypeToolsTests()
     {
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
-        _roots = [_testRoot];
-        var fileService = new FileService(new FileSystem());
+        _roots = [TestRoot];
+        var fileService = new FileService(_fs);
         _tools = new TypeTools(fileService, null!, new TypeScanner(fileService));
 
         WriteFile("Actor/ActorBase.cs", """
@@ -229,7 +228,7 @@ public sealed class TypeToolsTests : IDisposable
     public void Supervision_no_match()
     {
         Assert.Contains("No SupervisorStrategy", _tools.Supervision(_roots, "EmptyActor"));
-        Assert.Contains("No default supervision", _tools.Supervision([Path.Combine(_testRoot, "Users")], null));
+        Assert.Contains("No default supervision", _tools.Supervision([_fs.Path.Combine(TestRoot, "Users")], null));
     }
 
     [Fact]
@@ -243,10 +242,8 @@ public sealed class TypeToolsTests : IDisposable
 
     private void WriteFile(string relativePath, string content)
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, content);
+        var fullPath = _fs.Path.Combine(TestRoot, relativePath);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
+        _fs.File.WriteAllText(fullPath, content);
     }
-
-    public void Dispose() => Directory.Delete(_testRoot, recursive: true);
 }

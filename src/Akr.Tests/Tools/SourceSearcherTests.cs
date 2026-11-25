@@ -1,18 +1,17 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Scanning;
 
 namespace Akr.Tests.Tools;
 
-public sealed class SourceSearcherTests : IDisposable
+public sealed class SourceSearcherTests
 {
-    private readonly string _testRoot;
+    private const string TestRoot = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly SourceSearcher _searcher;
 
     public SourceSearcherTests()
     {
-        _searcher = new SourceSearcher(new FileService(new FileSystem()));
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
+        _searcher = new SourceSearcher(new FileService(_fs));
 
         WriteFile("src/Actor.cs", """
             namespace Akka.Actor;
@@ -37,7 +36,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Finds_matching_lines()
     {
-        var results = _searcher.Search([_testRoot], "PreStart");
+        var results = _searcher.Search([TestRoot], "PreStart");
 
         Assert.Single(results);
         Assert.Equal("src/Actor.cs", results[0].File);
@@ -47,7 +46,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Returns_context_lines()
     {
-        var results = _searcher.Search([_testRoot], "PreStart");
+        var results = _searcher.Search([TestRoot], "PreStart");
 
         Assert.NotEmpty(results[0].ContextBefore);
         Assert.NotEmpty(results[0].ContextAfter);
@@ -56,7 +55,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Respects_file_pattern()
     {
-        var results = _searcher.Search([_testRoot], "dispatcher", filePattern: "*.conf");
+        var results = _searcher.Search([TestRoot], "dispatcher", filePattern: "*.conf");
 
         Assert.Single(results);
         Assert.Equal("reference.conf", results[0].File);
@@ -65,7 +64,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Respects_max_results()
     {
-        var results = _searcher.Search([_testRoot], @"public", maxResults: 2);
+        var results = _searcher.Search([TestRoot], @"public", maxResults: 2);
 
         Assert.Equal(2, results.Count);
     }
@@ -73,7 +72,7 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Returns_empty_for_no_match()
     {
-        var results = _searcher.Search([_testRoot], "NonExistentSymbol");
+        var results = _searcher.Search([TestRoot], "NonExistentSymbol");
 
         Assert.Empty(results);
     }
@@ -81,17 +80,15 @@ public sealed class SourceSearcherTests : IDisposable
     [Fact]
     public void Supports_regex_patterns()
     {
-        var results = _searcher.Search([_testRoot], @"public\s+virtual\s+void");
+        var results = _searcher.Search([TestRoot], @"public\s+virtual\s+void");
 
         Assert.Equal(2, results.Count);
     }
 
     private void WriteFile(string relativePath, string content)
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, content);
+        var fullPath = _fs.Path.Combine(TestRoot, relativePath);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
+        _fs.File.WriteAllText(fullPath, content);
     }
-
-    public void Dispose() => Directory.Delete(_testRoot, recursive: true);
 }

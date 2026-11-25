@@ -1,19 +1,19 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class TypeFinderTests : IDisposable
+public sealed class TypeFinderTests
 {
-    private readonly string _testRoot;
+    private const string TestRoot = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly TypeTools _tools;
 
     public TypeFinderTests()
     {
-        _tools = new TypeTools(new FileService(new FileSystem()), null!, new TypeScanner(new FileService(new FileSystem())));
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
+        var fileService = new FileService(_fs);
+        _tools = new TypeTools(fileService, null!, new TypeScanner(fileService));
 
         WriteFile("src/ActorBase.cs", """
             using System;
@@ -53,7 +53,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Finds_type_by_exact_name()
     {
-        var results = _tools.FindType([_testRoot], "Props");
+        var results = _tools.FindType([TestRoot], "Props");
 
         Assert.Single(results);
         Assert.Equal("Akka.Actor", results[0].Namespace);
@@ -63,7 +63,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Does_not_match_partial_names()
     {
-        var results = _tools.FindType([_testRoot], "Actor");
+        var results = _tools.FindType([TestRoot], "Actor");
 
         // Should match "class Actor" in Other/ but NOT "class ActorBase" or "class ActorSystem"
         Assert.Single(results);
@@ -73,7 +73,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Returns_full_source_when_requested()
     {
-        var results = _tools.FindType([_testRoot], "Props", fullSource: true);
+        var results = _tools.FindType([TestRoot], "Props", fullSource: true);
 
         Assert.Single(results);
         Assert.Contains("static Props Create<T>", results[0].Source);
@@ -83,7 +83,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Returns_summary_by_default()
     {
-        var results = _tools.FindType([_testRoot], "ActorBase");
+        var results = _tools.FindType([TestRoot], "ActorBase");
 
         Assert.Single(results);
         Assert.Contains("PreStart", results[0].Source);
@@ -93,7 +93,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Returns_empty_for_unknown_type()
     {
-        var results = _tools.FindType([_testRoot], "NonExistent");
+        var results = _tools.FindType([TestRoot], "NonExistent");
 
         Assert.Empty(results);
     }
@@ -101,7 +101,7 @@ public sealed class TypeFinderTests : IDisposable
     [Fact]
     public void Finds_abstract_class()
     {
-        var results = _tools.FindType([_testRoot], "ActorSystem");
+        var results = _tools.FindType([TestRoot], "ActorSystem");
 
         Assert.Single(results);
         Assert.Contains("abstract class ActorSystem", results[0].Declaration);
@@ -109,10 +109,8 @@ public sealed class TypeFinderTests : IDisposable
 
     private void WriteFile(string relativePath, string content)
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, content);
+        var fullPath = _fs.Path.Combine(TestRoot, relativePath);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
+        _fs.File.WriteAllText(fullPath, content);
     }
-
-    public void Dispose() => Directory.Delete(_testRoot, recursive: true);
 }

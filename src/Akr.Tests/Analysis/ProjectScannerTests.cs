@@ -1,4 +1,4 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Configuration;
 using Akr.Registry;
 using Akr.Scanning;
@@ -7,34 +7,25 @@ using Microsoft.Extensions.Options;
 
 namespace Akr.Tests.Analysis;
 
-public sealed class ProjectScannerTests : IDisposable
+public sealed class ProjectScannerTests
 {
-    private readonly string _testRoot;
+    private const string TestRoot = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly ProjectScanner _scanner;
 
     public ProjectScannerTests()
     {
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
         _scanner = new ProjectScanner(
-            new FileService(new FileSystem()),
+            new FileService(_fs),
             NullLogger<ProjectScanner>.Instance,
             Options.Create(new AkrOptions()));
     }
 
-    public void Dispose()
-    {
-        if (Directory.Exists(_testRoot))
-        {
-            Directory.Delete(_testRoot, true);
-        }
-    }
-
     private void WriteFile(string relativePath, string content)
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, content);
+        var fullPath = _fs.Path.Combine(TestRoot, relativePath);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
+        _fs.File.WriteAllText(fullPath, content);
     }
 
     [Fact]
@@ -50,7 +41,7 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result = _scanner.Scan(_testRoot);
+        var result = _scanner.Scan(TestRoot);
 
         Assert.True(result.HasPackages);
         Assert.Equal("1.5.75", result.Packages["Akka"]);
@@ -70,7 +61,7 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result = _scanner.Scan(_testRoot);
+        var result = _scanner.Scan(TestRoot);
 
         Assert.True(result.HasPackages);
         Assert.Equal("1.5.75", result.Packages["Akka"]);
@@ -88,7 +79,7 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result = _scanner.Scan(_testRoot);
+        var result = _scanner.Scan(TestRoot);
 
         Assert.False(result.HasPackages);
     }
@@ -104,7 +95,7 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result = _scanner.Scan(_testRoot);
+        var result = _scanner.Scan(TestRoot);
 
         Assert.True(result.HasPackages);
         Assert.Equal("1.5.30", result.Packages["Akka.Persistence.Sql"]);
@@ -121,24 +112,23 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var subDir = Path.Combine(_testRoot, "src", "MyApp");
-        Directory.CreateDirectory(subDir);
+        var subDir = _fs.Path.Combine(TestRoot, "src", "MyApp");
+        _fs.Directory.CreateDirectory(subDir);
 
         var result = _scanner.Scan(subDir);
 
         Assert.True(result.HasPackages);
         Assert.Equal("1.5.75", result.Packages["Akka"]);
-        Assert.Equal(_testRoot, result.ProjectPath);
+        Assert.Equal(_fs.Path.GetFullPath(TestRoot), result.ProjectPath);
     }
 
     [Fact]
     public void Returns_empty_when_no_project_files()
     {
-        var emptyDir = Path.Combine(_testRoot, "empty");
-        Directory.CreateDirectory(emptyDir);
+        var emptyDir = _fs.Path.Combine(TestRoot, "empty");
+        _fs.Directory.CreateDirectory(emptyDir);
 
-        var result = _scanner.Scan(emptyDir, stopDirectory: _testRoot);
-        // stopDirectory prevents walk-up past _testRoot to avoid finding real project files
+        var result = _scanner.Scan(emptyDir, stopDirectory: TestRoot);
 
         Assert.False(result.HasPackages);
         Assert.Null(result.ProjectPath);
@@ -155,8 +145,8 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result1 = _scanner.Scan(_testRoot);
-        var result2 = _scanner.Scan(_testRoot);
+        var result1 = _scanner.Scan(TestRoot);
+        var result2 = _scanner.Scan(TestRoot);
 
         Assert.Same(result1, result2);
     }
@@ -179,7 +169,7 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result = _scanner.Scan(_testRoot);
+        var result = _scanner.Scan(TestRoot);
 
         Assert.Equal("1.5.75", result.Packages["Akka"]);
     }
@@ -213,7 +203,7 @@ public sealed class ProjectScannerTests : IDisposable
             </Project>
             """);
 
-        var result = _scanner.Scan(_testRoot);
+        var result = _scanner.Scan(TestRoot);
 
         Assert.True(result.HasPackages);
         Assert.Equal("1.6.0-preview.3", result.Packages["Akka"]);

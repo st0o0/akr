@@ -1,21 +1,20 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class StreamPersistenceToolsTests : IDisposable
+public sealed class StreamPersistenceToolsTests
 {
-    private readonly string _root;
+    private const string Root = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly StreamTools _tools;
     private readonly PersistenceTools _persistence;
 
     public StreamPersistenceToolsTests()
     {
-        var fs = new FileService(new FileSystem());
+        var fs = new FileService(_fs);
         _tools = new StreamTools(fs, null!);
         _persistence = new PersistenceTools(fs, null!);
-        _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_root);
 
         WriteFile("Akka.Streams/Implementation/Merge.cs", """
             namespace Akka.Streams.Implementation;
@@ -92,16 +91,14 @@ public sealed class StreamPersistenceToolsTests : IDisposable
 
     private void WriteFile(string relative, string content)
     {
-        var path = Path.Combine(_root, relative);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, content);
+        var path = _fs.Path.Combine(Root, relative);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(path)!);
+        _fs.File.WriteAllText(path, content);
     }
 
-    public void Dispose() => Directory.Delete(_root, recursive: true);
+    private string[] Roots => [Root];
 
-    private string[] Roots => [_root];
-
-    private string[] EmptyRoots => [Path.Combine(_root, "Other")];
+    private string[] EmptyRoots => [_fs.Path.Combine(Root, "Other")];
 
     [Fact]
     public void StageDetail_ReturnsFullSource_ScopedToAkkaStreams()

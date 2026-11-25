@@ -1,19 +1,19 @@
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 using Akr.Scanning;
 using Akr.Tools;
 
 namespace Akr.Tests.Tools;
 
-public sealed class HostingExtensionsToolTests : IDisposable
+public sealed class HostingExtensionsToolTests
 {
-    private readonly string _testRoot;
+    private const string TestRoot = "C:/test";
+    private readonly MockFileSystem _fs = new();
     private readonly HostingTools _tools;
 
     public HostingExtensionsToolTests()
     {
-        _tools = new HostingTools(new FileService(new FileSystem()), null!, new HoconScanner(new FileService(new FileSystem())));
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
+        var fileService = new FileService(_fs);
+        _tools = new HostingTools(fileService, null!, new HoconScanner(fileService));
 
         WriteFile("Persistence/PersistenceExtensions.cs", """
             namespace Akka.Hosting;
@@ -44,7 +44,7 @@ public sealed class HostingExtensionsToolTests : IDisposable
     [Fact]
     public void Finds_With_and_Add_methods()
     {
-        var results = _tools.FindExtensions([_testRoot]);
+        var results = _tools.FindExtensions([TestRoot]);
         var all = results.SelectMany(r => r.Signatures).ToList();
 
         Assert.Contains(all, s => s.Contains("WithSqlPersistence"));
@@ -55,7 +55,7 @@ public sealed class HostingExtensionsToolTests : IDisposable
     [Fact]
     public void Extracts_multiline_signature()
     {
-        var results = _tools.FindExtensions([_testRoot], "Persistence");
+        var results = _tools.FindExtensions([TestRoot], "Persistence");
         var sig = results.Single().Signatures.First(s => s.Contains("WithSqlPersistence"));
 
         Assert.Contains("string connectionString", sig);
@@ -66,7 +66,7 @@ public sealed class HostingExtensionsToolTests : IDisposable
     [Fact]
     public void Filter_limits_files_case_insensitively()
     {
-        var results = _tools.FindExtensions([_testRoot], "cluster");
+        var results = _tools.FindExtensions([TestRoot], "cluster");
 
         var result = Assert.Single(results);
         Assert.Equal("Cluster/ClusterExtensions.cs", result.File);
@@ -75,7 +75,7 @@ public sealed class HostingExtensionsToolTests : IDisposable
     [Fact]
     public void Excludes_non_extension_static_methods()
     {
-        var all = _tools.FindExtensions([_testRoot]).SelectMany(r => r.Signatures);
+        var all = _tools.FindExtensions([TestRoot]).SelectMany(r => r.Signatures);
 
         Assert.DoesNotContain(all, s => s.Contains("Helper"));
     }
@@ -90,7 +90,7 @@ public sealed class HostingExtensionsToolTests : IDisposable
     [Fact]
     public void Format_groups_by_file()
     {
-        var output = HostingTools.Format(_tools.FindExtensions([_testRoot], "Cluster"), "Cluster");
+        var output = HostingTools.Format(_tools.FindExtensions([TestRoot], "Cluster"), "Cluster");
 
         Assert.Contains("--- Cluster/ClusterExtensions.cs ---", output);
         Assert.Contains("  static IServiceCollection AddAkka<T>", output);
@@ -98,10 +98,8 @@ public sealed class HostingExtensionsToolTests : IDisposable
 
     private void WriteFile(string relativePath, string content)
     {
-        var fullPath = Path.Combine(_testRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, content);
+        var fullPath = _fs.Path.Combine(TestRoot, relativePath);
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(fullPath)!);
+        _fs.File.WriteAllText(fullPath, content);
     }
-
-    public void Dispose() => Directory.Delete(_testRoot, recursive: true);
 }
