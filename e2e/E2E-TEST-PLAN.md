@@ -1,14 +1,14 @@
 # akr E2E Test Plan
 
-End-to-end validation of all 33 akr MCP tools through realistic agent usage scenarios.
-Invoked via `/e2e-test`. Opus orchestrates, 3 Haiku subagents test in parallel.
+End-to-end validation of all 37 akr MCP tools through realistic agent usage scenarios.
+Invoked via `/e2e-test`. Opus orchestrates, 4 Haiku subagents test in parallel.
 
 ## S0: Preflight
 
 ### S0.1 Tool availability
 
 - **Action**: ToolSearch for `mcp__akr__*` tools
-- **PASS**: At least 33 tools discovered
+- **PASS**: At least 37 tools discovered
 - **FAIL**: Tools not available → abort with setup instructions
 
 ### S0.2 Smoke test
@@ -231,23 +231,82 @@ Invoked via `/e2e-test`. Opus orchestrates, 3 Haiku subagents test in parallel.
 
 ---
 
-## S4: Multi-Tool Scenarios (Opus)
+## S4: Docs, Versioning & Pipelines (Haiku #4)
 
-### S4.1 HOCON-to-Hosting Migration
+### S4.1 docs_search — basic query
+
+- **Action**: `docs_search(query: "cluster sharding")`
+- **PASS**: Contains at least 1 result with file name AND excerpt text about sharding or cluster
+
+### S4.2 docs_search — no results
+
+- **Action**: `docs_search(query: "ZzzCompletelyNonexistentTopic999")`
+- **PASS**: Contains `No documentation found` (case-insensitive)
+
+### S4.3 docs_example — with language filter
+
+- **Action**: `docs_example(topic: "persistence", language: "csharp")`
+- **PASS**: Contains at least 1 code block with C# code (e.g. `var`, `class`, `public`, or curly braces)
+
+### S4.4 docs_example — hocon filter
+
+- **Action**: `docs_example(topic: "remoting", language: "hocon")`
+- **PASS**: Contains at least 1 code block with HOCON content (e.g. `akka` or `{` block)
+
+### S4.5 docs_example — no results topic
+
+- **Action**: `docs_example(topic: "ZzzNonexistentTopic999")`
+- **PASS**: Contains `No documentation` or `No code examples` (case-insensitive)
+
+### S4.6 source_diff — same version
+
+- **Action**: `source_diff(typeName: "Props", versionA: "1.5.30", versionB: "1.5.30")`
+- **PASS**: Contains `No changes` (case-insensitive)
+
+### S4.7 source_diff — missing parameters
+
+- **Action**: `source_diff(typeName: "Props")`
+- **PASS**: Contains `required` or error message about missing version parameters
+
+### S4.8 migration_guide — same version
+
+- **Action**: `migration_guide(fromVersion: "1.5.30", toVersion: "1.5.30")`
+- **PASS**: Contains `Migration Guide` AND `No changelog` or `No configuration changes` (indicates valid but empty migration)
+
+### S4.9 lookup_type — version pinning
+
+- **Action**: `lookup_type(type: "Props", version: "1.5.30")`
+- **PASS**: Contains `class Props` AND `Akka.Actor` (proves version-pinned fetch works)
+
+### S4.10 docs_example — unfiltered
+
+- **Action**: `docs_example(topic: "supervision strategy")`
+- **PASS**: Contains at least 2 code examples (multiple ``` blocks or "code example(s)")
+
+### S4.11 docs_search — ask pattern
+
+- **Action**: `docs_search(query: "ask pattern timeout")`
+- **PASS**: Contains at least 1 result (non-empty)
+
+---
+
+## S5: Multi-Tool Scenarios (Opus)
+
+### S5.1 HOCON-to-Hosting Migration
 
 1. `config_reference(path: "akka.cluster")`
 2. `hosting_extensions(filter: "Cluster")`
 3. `hosting_to_hocon()`
 - **PASS**: Step 2 contains a `WithClustering` or `AddClustering` extension AND Step 3 maps a clustering method to an `akka.cluster.*` config path
 
-### S4.2 Persistence Setup
+### S5.2 Persistence Setup
 
 1. `journal_plugins()`
 2. `config_reference(path: "akka.persistence")`
 3. `hosting_extensions(filter: "Persistence")`
 - **PASS**: Step 1 names a journal plugin AND Step 2 contains persistence config AND Step 3 contains a persistence-related `With*`/`Add*` method
 
-### S4.3 Actor Hierarchy Exploration
+### S5.3 Actor Hierarchy Exploration
 
 1. `lookup_type(type: "ActorBase")`
 2. `type_hierarchy(type: "ActorBase")`
@@ -255,7 +314,7 @@ Invoked via `/e2e-test`. Opus orchestrates, 3 Haiku subagents test in parallel.
 4. `type_members(type: "ActorBase")`
 - **PASS**: Type from Step 1 appears in Step 2 hierarchy AND at least 1 virtual method from Step 3 appears in Step 4 members output
 
-### S4.4 Cross-Reference Consistency
+### S5.4 Cross-Reference Consistency
 
 1. `dependency_graph()`
 2. `extension_points()`
@@ -264,7 +323,7 @@ Invoked via `/e2e-test`. Opus orchestrates, 3 Haiku subagents test in parallel.
 
 ---
 
-## S5: Results Format
+## S6: Results Format
 
 ### Report file
 
