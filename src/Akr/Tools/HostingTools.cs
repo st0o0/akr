@@ -29,7 +29,7 @@ public sealed partial class HostingTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return Format(FindExtensions(roots, filter), filter);
+        return OutputLimit.Truncate(Format(FindExtensions(roots, filter), filter));
     }
 
     public static string Format(IReadOnlyList<ExtensionFileResult> results, string? filter)
@@ -170,7 +170,7 @@ public sealed partial class HostingTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return MapQuery(roots, query);
+        return OutputLimit.Truncate(MapQuery(roots, query));
     }
 
     [McpServerTool(Name = "hosting_startup_order"),
@@ -182,7 +182,7 @@ public sealed partial class HostingTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindStartupOrder(roots, filter);
+        return OutputLimit.Truncate(FindStartupOrder(roots, filter));
     }
 
     public string MapQuery(IEnumerable<string> roots, string query)
@@ -326,7 +326,7 @@ public sealed partial class HostingTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindDiPatterns(roots);
+        return OutputLimit.Truncate(FindDiPatterns(roots));
     }
 
     public string FindDiPatterns(IEnumerable<string> roots)
@@ -387,7 +387,7 @@ public sealed partial class HostingTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return CompareTestKits(roots);
+        return OutputLimit.Truncate(CompareTestKits(roots));
     }
 
     public string CompareTestKits(IEnumerable<string> roots)

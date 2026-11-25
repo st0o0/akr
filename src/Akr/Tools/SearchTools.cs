@@ -70,6 +70,6 @@ public sealed partial class SearchTools
             sb.AppendLine();
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 }

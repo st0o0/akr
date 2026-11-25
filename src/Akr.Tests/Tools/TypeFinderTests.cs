@@ -107,6 +107,25 @@ public sealed class TypeFinderTests
         Assert.Contains("abstract class ActorSystem", results[0].Declaration);
     }
 
+    [Fact]
+    public void Extracts_multiline_declaration_with_base_types()
+    {
+        WriteFile("src/MultiLine.cs", """
+            namespace Akka.Actor;
+            public abstract class ExtendedActor
+                : ActorBase, IActorRef
+            {
+                protected override bool Receive(object message) => true;
+            }
+            """);
+
+        var results = _tools.FindType([TestRoot], "ExtendedActor");
+
+        Assert.Single(results);
+        Assert.Contains("ActorBase", results[0].Declaration);
+        Assert.Contains("IActorRef", results[0].Declaration);
+    }
+
     private void WriteFile(string relativePath, string content)
     {
         var fullPath = _fs.Path.Combine(TestRoot, relativePath);

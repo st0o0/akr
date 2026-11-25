@@ -141,6 +141,18 @@ public sealed class ConfigToolsTests
     }
 
     [Fact]
+    public void DiffConfig_identical_returns_no_differences_message()
+    {
+        var a = new Dictionary<string, string?> { ["x"] = "1", ["y"] = "2" };
+        var b = new Dictionary<string, string?> { ["x"] = "1", ["y"] = "2" };
+
+        var diff = ConfigTools.DiffConfig(a, b);
+        var output = ConfigTools.FormatDiff(diff, b);
+
+        Assert.Contains("No configuration differences detected", output);
+    }
+
+    [Fact]
     public void Changelog_returns_sections()
     {
         var output = _tools.FindChangelog([Root], null);

@@ -44,10 +44,10 @@ public sealed class VersionTools
 
         if (typeName is not null)
         {
-            return DiffType(rootsA, rootsB, typeName, versionA, versionB);
+            return OutputLimit.Truncate(DiffType(rootsA, rootsB, typeName, versionA, versionB));
         }
 
-        return DiffConfig(rootsA, rootsB, configPath!, versionA, versionB);
+        return OutputLimit.Truncate(DiffConfig(rootsA, rootsB, configPath!, versionA, versionB));
     }
 
     [McpServerTool(Name = "migration_guide"), Description("Generate a migration guide for upgrading between two Akka.NET versions. Combines changelog, config changes, and relevant documentation.")]
@@ -107,7 +107,7 @@ public sealed class VersionTools
             sb.AppendLine("Documentation source unavailable.");
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     private string DiffType(IReadOnlyList<string> rootsA, IReadOnlyList<string> rootsB, string typeName, string versionA, string versionB)

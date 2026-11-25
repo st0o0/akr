@@ -27,7 +27,7 @@ public sealed partial class StreamTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return Format(FindStages(roots, filter), filter);
+        return OutputLimit.Truncate(Format(FindStages(roots, filter), filter));
     }
 
     public static readonly IReadOnlyList<string> Categories = ["Source", "Flow", "Sink", "Fan-In", "Fan-Out", "Custom"];
@@ -175,7 +175,7 @@ public sealed partial class StreamTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatStageDetail(roots, stage);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatStageDetail(roots, stage));
     }
 
     [McpServerTool(Name = "graph_dsl_operators"), Description("List GraphDSL builder operators and their signatures from Akka.Streams source.")]
@@ -184,7 +184,7 @@ public sealed partial class StreamTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatGraphDsl(roots);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatGraphDsl(roots));
     }
 
     [McpServerTool(Name = "stream_attributes"), Description("Catalog configurable Akka.Streams attributes with their defaults.")]
@@ -193,7 +193,7 @@ public sealed partial class StreamTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatAttributes(roots);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatAttributes(roots));
     }
 
     public string FormatStageDetail(IReadOnlyList<string> roots, string stage)

@@ -47,7 +47,7 @@ public sealed partial class PersistenceTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatPlugins("Journal plugins", FindPlugins(roots, _journalBases, "journal"));
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatPlugins("Journal plugins", FindPlugins(roots, _journalBases, "journal")));
     }
 
     [McpServerTool(Name = "snapshot_plugins"), Description("Catalog Akka.Persistence snapshot store plugins with file paths and config sections.")]
@@ -56,7 +56,7 @@ public sealed partial class PersistenceTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatPlugins("Snapshot store plugins", FindPlugins(roots, _snapshotBases, "snapshot-store"));
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatPlugins("Snapshot store plugins", FindPlugins(roots, _snapshotBases, "snapshot-store")));
     }
 
     [McpServerTool(Name = "persistence_query"), Description("List Akka.Persistence.Query ReadJournal implementations and their supported query types.")]
@@ -65,7 +65,7 @@ public sealed partial class PersistenceTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatReadJournals(roots);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatReadJournals(roots));
     }
 
     [McpServerTool(Name = "event_adapter_chain"), Description("List event adapter implementations and event adapter configuration.")]
@@ -74,7 +74,7 @@ public sealed partial class PersistenceTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : FormatAdapters(roots);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(FormatAdapters(roots));
     }
 
     public IReadOnlyList<ClassInfo> FindClasses(IReadOnlyList<string> roots, string[] baseNames)

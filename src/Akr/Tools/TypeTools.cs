@@ -59,7 +59,7 @@ public sealed partial class TypeTools
             sb.AppendLine();
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     [McpServerTool(Name = "type_members"), Description("Get compact member signatures for a C# type in Akka.NET source.")]
@@ -111,7 +111,7 @@ public sealed partial class TypeTools
             }
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     private static readonly HashSet<string> _systemInterfaces = new(StringComparer.Ordinal)
@@ -229,12 +229,35 @@ public sealed partial class TypeTools
 
     private static string ExtractDeclaration(string[] lines, Regex typePattern)
     {
-        foreach (var line in lines)
+        for (var i = 0; i < lines.Length; i++)
         {
-            if (typePattern.IsMatch(line))
+            if (!typePattern.IsMatch(lines[i]))
             {
-                return line.Trim();
+                continue;
             }
+
+            var decl = lines[i].Trim();
+            if (decl.Contains('{'))
+            {
+                return decl[..decl.IndexOf('{')].TrimEnd();
+            }
+
+            for (var j = i + 1; j < lines.Length; j++)
+            {
+                var continuation = lines[j].Trim();
+                if (string.IsNullOrEmpty(continuation) || continuation.StartsWith('{'))
+                {
+                    break;
+                }
+
+                decl = decl + " " + continuation;
+                if (continuation.Contains('{'))
+                {
+                    return decl[..decl.IndexOf('{')].TrimEnd();
+                }
+            }
+
+            return decl;
         }
 
         return string.Empty;
@@ -636,7 +659,7 @@ public sealed partial class TypeTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : Hierarchy(roots, type);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(Hierarchy(roots, type));
     }
 
     [McpServerTool(Name = "find_implementations"), Description("Find all classes implementing an interface, including classes deriving from an implementing class.")]
@@ -646,7 +669,7 @@ public sealed partial class TypeTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : Implementations(roots, @interface);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(Implementations(roots, @interface));
     }
 
     [McpServerTool(Name = "find_messages"), Description("List message types handled by an actor via Receive<T>, ReceiveAsync<T>, Command<T> handlers.")]
@@ -656,7 +679,7 @@ public sealed partial class TypeTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : Messages(roots, actor);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(Messages(roots, actor));
     }
 
     [McpServerTool(Name = "message_protocol"), Description("Summarize Command/Query/Event/Response/Result types in a namespace or actor, grouped into request-response pairs.")]
@@ -666,7 +689,7 @@ public sealed partial class TypeTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : Protocol(roots, scope);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(Protocol(roots, scope));
     }
 
     [McpServerTool(Name = "virtual_methods"), Description("List virtual and abstract methods of a type, ordered by actor lifecycle (PreStart, PreRestart, PostRestart, PostStop, AroundReceive, Receive).")]
@@ -676,7 +699,7 @@ public sealed partial class TypeTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : VirtualMethods(roots, type);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(VirtualMethods(roots, type));
     }
 
     [McpServerTool(Name = "supervision_defaults"), Description("Show supervision strategies: default strategy, or SupervisorStrategy overrides for a given type.")]
@@ -686,7 +709,7 @@ public sealed partial class TypeTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return roots.Count == 0 ? NoSource : Supervision(roots, filter);
+        return roots.Count == 0 ? NoSource : OutputLimit.Truncate(Supervision(roots, filter));
     }
 
     [GeneratedRegex(@"\b(?:Receive|ReceiveAsync|Command|CommandAsync)\s*<\s*(.+?)\s*>\s*\(")]

@@ -35,7 +35,7 @@ public sealed partial class SerializationTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindSerializerBindings(roots, filter);
+        return OutputLimit.Truncate(FindSerializerBindings(roots, filter));
     }
 
     public string FindSerializerBindings(IEnumerable<string> roots, string? filter = null)
@@ -91,7 +91,7 @@ public sealed partial class SerializationTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindSerializerDetail(roots, name);
+        return OutputLimit.Truncate(FindSerializerDetail(roots, name));
     }
 
     public string FindSerializerDetail(IEnumerable<string> roots, string name)
@@ -161,7 +161,7 @@ public sealed partial class SerializationTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindManifests(roots, filter);
+        return OutputLimit.Truncate(FindManifests(roots, filter));
     }
 
     public string FindManifests(IEnumerable<string> roots, string? filter = null, int maxResults = 100)

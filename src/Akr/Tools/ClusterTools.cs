@@ -52,7 +52,7 @@ public sealed partial class ClusterTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindClusterEvents(roots);
+        return OutputLimit.Truncate(FindClusterEvents(roots));
     }
 
     public string FindClusterEvents(IEnumerable<string> roots)
@@ -120,7 +120,7 @@ public sealed partial class ClusterTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindExtensionPoints(roots);
+        return OutputLimit.Truncate(FindExtensionPoints(roots));
     }
 
     public string FindExtensionPoints(IEnumerable<string> roots)
@@ -194,7 +194,7 @@ public sealed partial class ClusterTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return BuildDependencyGraph(roots, filter);
+        return OutputLimit.Truncate(BuildDependencyGraph(roots, filter));
     }
 
     public string BuildDependencyGraph(IEnumerable<string> roots, string? filter = null)

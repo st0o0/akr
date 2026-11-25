@@ -69,7 +69,7 @@ public sealed class ConfigTools
                 : "No reference.conf files found.";
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     private const int MaxSectionLines = 40;
@@ -85,7 +85,7 @@ public sealed class ConfigTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return BuildConfigTree(roots, path);
+        return OutputLimit.Truncate(BuildConfigTree(roots, path));
     }
 
     [McpServerTool(Name = "config_diff"),
@@ -111,7 +111,7 @@ public sealed class ConfigTools
         }
 
         sb.Append(FormatDiff(diff, current));
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     [McpServerTool(Name = "changelog"),
@@ -124,7 +124,7 @@ public sealed class ConfigTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindChangelog(roots, filter);
+        return OutputLimit.Truncate(FindChangelog(roots, filter));
     }
 
     public string BuildConfigTree(IEnumerable<string> roots, string? path)
@@ -204,6 +204,12 @@ public sealed class ConfigTools
     public static string FormatDiff(ConfigDiffResult diff, IReadOnlyDictionary<string, string?> current)
     {
         var sb = new StringBuilder();
+        if (diff.Added.Count == 0 && diff.Removed.Count == 0 && diff.Changed.Count == 0)
+        {
+            sb.AppendLine("No configuration differences detected.");
+            return sb.ToString();
+        }
+
         sb.AppendLine($"Added: {diff.Added.Count}, Removed: {diff.Removed.Count}, Changed: {diff.Changed.Count}");
         foreach (var k in diff.Added)
         {

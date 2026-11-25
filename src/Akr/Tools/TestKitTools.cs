@@ -25,7 +25,7 @@ public sealed class TestKitTools
         CancellationToken cancellationToken = default)
     {
         var roots = await _sourcePipeline.EnsureAllForVersionAsync(version, cancellationToken);
-        return FindTestKitHelpers(roots, filter);
+        return OutputLimit.Truncate(FindTestKitHelpers(roots, filter));
     }
 
     public string FindTestKitHelpers(IEnumerable<string> roots, string? filter = null)

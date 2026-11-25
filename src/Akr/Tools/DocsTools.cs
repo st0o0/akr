@@ -47,7 +47,7 @@ public sealed class DocsTools
             sb.AppendLine();
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     [McpServerTool(Name = "docs_example"), Description("Find code examples from Akka.NET documentation for a given topic.")]
@@ -91,7 +91,7 @@ public sealed class DocsTools
             sb.AppendLine();
         }
 
-        return sb.ToString();
+        return OutputLimit.Truncate(sb.ToString());
     }
 
     private async Task EnsureDocsIndexAsync(CancellationToken cancellationToken)
