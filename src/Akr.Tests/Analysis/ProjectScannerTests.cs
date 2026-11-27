@@ -249,9 +249,13 @@ public sealed class ProjectScannerTests
     [Fact]
     public void GetRelativePosixPath_normalizes_backslashes()
     {
+        var root = _fs.Path.GetFullPath("/root");
+        var full = _fs.Path.GetFullPath("/root/src/file.cs");
+        _fs.Directory.CreateDirectory(_fs.Path.GetFullPath("/root/src"));
+        _fs.File.WriteAllText(full, "");
         var fileService = new FileService(_fs);
 
-        var result = fileService.GetRelativePosixPath("C:\\root", "C:\\root\\src\\file.cs");
+        var result = fileService.GetRelativePosixPath(root, full);
 
         Assert.Equal("src/file.cs", result);
     }
