@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.1.1](https://github.com/st0o0/akr/compare/v0.1.0...v0.1.1) (2026-11-27)
+
+
+### Features
+
+* add Akka.Streams 1.6 parallel pipelines for source fetching and docs indexing ([a87e501](https://github.com/st0o0/akr/commit/a87e501327aef3d7034e5b6163edfb94e57dbf98))
+* add docs search, version pinning, and source diff tools for community edition ([d6c8198](https://github.com/st0o0/akr/commit/d6c81983d39794f0be092b9ca1eadb83ad8cefb5))
+* auto-detect Akka.NET version from project files + clean DI with IOptions ([e8598e4](https://github.com/st0o0/akr/commit/e8598e40ffab4e32ebdb19d3fe18e39bb9e05ba2))
+* enable Native AOT publishing with unified JsonSerializerContext ([9c65aa3](https://github.com/st0o0/akr/commit/9c65aa3c93642aefa204348b0e17bb375243cc01))
+* enable Native AOT release with RID-specific tool packaging ([b39f92e](https://github.com/st0o0/akr/commit/b39f92e997e9632718fcd14a9fc9aecda7c0508c))
+* output truncation at 50k chars, fix multi-line declarations, improve config_diff empty message ([d12ed8f](https://github.com/st0o0/akr/commit/d12ed8f9f2ce410c62f6b4a371eeb83b1116a25b))
+
+
+### Bug Fixes
+
+* RecordVersionAccess creates metadata when none exists, add edge case tests, improve tool response hints ([f739067](https://github.com/st0o0/akr/commit/f739067453e4a52cbcba39e5f511d93e9472169e))
+* use platform-independent paths in GetRelativePosixPath test ([46af049](https://github.com/st0o0/akr/commit/46af0490fc4f429d8786c62697f082650c65432e))
+
+
+### Refactoring
+
+* code quality cleanup - LoggerMessage generators, NonBacktracking regex, remove section comments, eliminate ProjectContextInitializer ([c0f32eb](https://github.com/st0o0/akr/commit/c0f32eb8d58cbb4941aa31a07a7f21a9cc1da932))
+* deduplicate tool helpers into HoconParser, HoconScanner, and TypeScanner ([7bd4200](https://github.com/st0o0/akr/commit/7bd420091212a483ad38b7df5a031a708d490b3d))
+* inject IOptions into ProjectScanner, generate VersionInfo at build time ([f6d4564](https://github.com/st0o0/akr/commit/f6d4564865a90df423db085a1311127df193da8d))
+* separation of concerns - split GitHubClient, reorganize tools by domain, switch to mono-repo docs ([337e43d](https://github.com/st0o0/akr/commit/337e43d6bc41d63fcf296777d2ec804a18480780))
+
 ## [0.1.0](https://github.com/st0o0/akr/compare/v0.1.0...v0.1.0) (2026-11-23)
 
 
