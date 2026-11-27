@@ -7,7 +7,10 @@
     <ToolCommandName>akr</ToolCommandName>
     <PackageType>McpServer</PackageType>
     <PublishAot>true</PublishAot>
-    <ToolPackageRuntimeIdentifiers>win-x64;linux-x64;osx-arm64</ToolPackageRuntimeIdentifiers>
+    <IsAotCompatible>true</IsAotCompatible>
+    <ToolPackageRuntimeIdentifiers>win-x64;linux-x64;osx-arm64;any</ToolPackageRuntimeIdentifiers>
+    <!-- slopwatch-ignore: SW005 Newtonsoft.Json (transitive via Akka) lacks trim annotations but is unreachable at runtime — Akka.DynamicTypeLoading feature switch gates all paths, trimmer removes the code -->
+    <NoWarn Condition="'$(PublishTrimmed)' == 'true' or '$(PublishAot)' == 'true'">$(NoWarn);IL2104</NoWarn>
 
     <Authors>st0o0</Authors>
     <Copyright>Copyright (c) 2026 st0o0</Copyright>
