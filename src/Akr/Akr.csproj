@@ -8,6 +8,7 @@
     <PackageType>McpServer</PackageType>
     <PublishAot>true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64;any</RuntimeIdentifiers>
     <ToolPackageRuntimeIdentifiers>win-x64;linux-x64;osx-arm64;any</ToolPackageRuntimeIdentifiers>
     <!-- slopwatch-ignore: SW005 Newtonsoft.Json (transitive via Akka) lacks trim annotations but is unreachable at runtime — Akka.DynamicTypeLoading feature switch gates all paths, trimmer removes the code -->
     <NoWarn Condition="'$(PublishTrimmed)' == 'true' or '$(PublishAot)' == 'true'">$(NoWarn);IL2104</NoWarn>
