@@ -1,0 +1,88 @@
+name: Release Dry Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Test version (e.g. 0.0.0-dry-run)
+        required: true
+        default: 0.0.0-dry-run
+
+jobs:
+  pack:
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: osx-arm64
+            os: macos-latest
+          - rid: any
+            os: ubuntu-latest
+          - rid: pointer
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v6
+
+      - name: Pack
+        run: >-
+          dotnet pack src/Akr/Akr.csproj
+          -c Release
+          -p:Version=${{ inputs.version }}
+          ${{ matrix.rid != 'pointer' && format('-r {0}', matrix.rid) || '' }}
+          ${{ matrix.rid == 'any' && '-p:PublishAot=false' || '' }}
+          -o ./packages
+
+      - name: List packages
+        shell: bash
+        run: ls -lh ./packages/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pack-${{ matrix.rid }}
+          path: ./packages/*.nupkg
+
+  verify:
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pack-*
+          merge-multiple: true
+          path: ./packages
+
+      - name: Verify all packages exist
+        shell: bash
+        run: |
+          echo "=== All packages ==="
+          ls -lh ./packages/
+          echo ""
+          echo "=== Checking expected packages ==="
+          version="${{ inputs.version }}"
+          expected=(
+            "Akr.${version}.nupkg"
+            "Akr.win-x64.${version}.nupkg"
+            "Akr.linux-x64.${version}.nupkg"
+            "Akr.osx-arm64.${version}.nupkg"
+            "Akr.any.${version}.nupkg"
+          )
+          missing=0
+          for pkg in "${expected[@]}"; do
+            if [ -f "./packages/$pkg" ]; then
+              echo "  OK: $pkg"
+            else
+              echo "  MISSING: $pkg"
+              missing=$((missing + 1))
+            fi
+          done
+          echo ""
+          if [ $missing -gt 0 ]; then
+            echo "FAIL: $missing package(s) missing"
+            exit 1
+          fi
+          echo "All 5 packages present."
