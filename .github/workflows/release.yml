@@ -16,29 +16,7 @@ jobs:
       contents: write
       pull-requests: write
 
-  build-pointer:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v6
-
-      - name: Pack pointer package
-        run: >-
-          dotnet pack src/Akr/Akr.csproj
-          -c Release
-          -p:Version=${{ needs.release-please.outputs.version }}
-          -o ./packages
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nuget-pointer
-          path: ./packages/*.nupkg
-
-  build-rid:
+  pack:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     strategy:
@@ -52,6 +30,8 @@ jobs:
             os: macos-latest
           - rid: any
             os: ubuntu-latest
+          - rid: pointer
+            os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -59,22 +39,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v6
 
-      - name: Pack RID-specific package
+      - name: Pack
         run: >-
           dotnet pack src/Akr/Akr.csproj
           -c Release
-          -r ${{ matrix.rid }}
           -p:Version=${{ needs.release-please.outputs.version }}
+          ${{ matrix.rid != 'pointer' && format('-r {0}', matrix.rid) || '' }}
           ${{ matrix.rid == 'any' && '-p:PublishAot=false' || '' }}
           -o ./packages
 
       - uses: actions/upload-artifact@v4
         with:
-          name: nuget-${{ matrix.rid }}
+          name: pack-${{ matrix.rid }}
           path: ./packages/*.nupkg
 
   publish:
-    needs: [release-please, build-pointer, build-rid]
+    needs: [release-please, pack]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -88,14 +68,9 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: nuget-*-*
+          pattern: pack-*
           merge-multiple: true
-          path: ./rid-packages
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: nuget-pointer
-          path: ./pointer-package
+          path: ./packages
 
       - name: Login to NuGet
         id: nuget-login
@@ -104,23 +79,16 @@ jobs:
           nuget-sources: https://api.nuget.org/v3/index.json
           user: ${{ secrets.NUGET_USER }}
 
-      - name: Push RID packages to NuGet (first)
+      - name: Push to NuGet
         run: >-
-          dotnet nuget push ./rid-packages/*.nupkg
+          dotnet nuget push ./packages/*.nupkg
           --source https://api.nuget.org/v3/index.json
           --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           --skip-duplicate
 
-      - name: Push pointer package to NuGet (last)
+      - name: Push to GitHub Packages
         run: >-
-          dotnet nuget push ./pointer-package/*.nupkg
-          --source https://api.nuget.org/v3/index.json
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
-          --skip-duplicate
-
-      - name: Push all to GitHub Packages
-        run: >-
-          dotnet nuget push ./**/*.nupkg
+          dotnet nuget push ./packages/*.nupkg
           --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
           --api-key ${{ github.token }}
           --skip-duplicate
@@ -129,6 +97,4 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.release-please.outputs.version }}
-          files: |
-            ./rid-packages/*.nupkg
-            ./pointer-package/*.nupkg
+          files: ./packages/*.nupkg
